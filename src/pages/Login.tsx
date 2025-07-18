@@ -1,31 +1,61 @@
 
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, BookOpen } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { authenticationService } from '@/service/authenticationService';
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
+  const [isLoading, setIsLoading] = useState(false); // New loading state
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prevFormData => ({
+      ...prevFormData,
+      [name]: value
+    }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement authentication logic
-    console.log('Login attempt:', formData);
+
+    setIsLoading(true); // Set loading to true when starting login process
+
+    try {
+      const response = await authenticationService.authenticate({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      toast({
+        title: "Đăng nhập thành công!",
+        description: "Chào mừng bạn trở lại.",
+      });
+
+      navigate('/home'); 
+    } catch (error) {
+      const errorMessage = error.message || "Đăng nhập không thành công. Vui lòng thử lại.";
+      toast({
+        title: "Đăng nhập thất bại",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false); 
+    }
   };
 
   const handleGoogleLogin = () => {
