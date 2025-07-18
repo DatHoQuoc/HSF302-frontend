@@ -1,15 +1,18 @@
 
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, BookOpen } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
 
 const Register = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,6 +23,7 @@ const Register = () => {
     confirmPassword: ''
   });
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -28,18 +32,64 @@ const Register = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      alert('Mật khẩu không khớp!');
+      toast({
+        title: "Lỗi",
+        description: "Mật khẩu không khớp!",
+        variant: "destructive",
+      });
       return;
     }
     if (!agreeToTerms) {
-      alert('Bạn cần đồng ý với điều khoản sử dụng!');
+      toast({
+        title: "Lỗi",
+        description: "Bạn cần đồng ý với điều khoản sử dụng!",
+        variant: "destructive",
+      });
       return;
     }
-    // TODO: Implement registration logic
-    console.log('Registration attempt:', formData);
+
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch('/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Đăng ký thành công!",
+          description: "Vui lòng kiểm tra email để kích hoạt tài khoản.",
+        });
+        navigate('/activate-account');
+      } else {
+        const errorData = await response.text();
+        toast({
+          title: "Đăng ký thất bại",
+          description: errorData || "Có lỗi xảy ra khi đăng ký.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Lỗi kết nối",
+        description: "Không thể kết nối đến máy chủ. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignup = () => {
@@ -78,6 +128,7 @@ const Register = () => {
               onClick={handleGoogleSignup}
               variant="outline"
               className="w-full h-11 border-gray-300 hover:bg-gray-50"
+              disabled={isLoading}
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                 <path
@@ -229,9 +280,9 @@ const Register = () => {
               <Button
                 type="submit"
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                disabled={!agreeToTerms}
+                disabled={!agreeToTerms || isLoading}
               >
-                Tạo tài khoản
+                {isLoading ? 'Đang xử lý...' : 'Tạo tài khoản'}
               </Button>
             </form>
 
