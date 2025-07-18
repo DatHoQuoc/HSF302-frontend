@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { BookOpen, Users, Heart, ArrowRight, Plus, Search, Filter, Grid, List } from 'lucide-react';
+import { BookOpen, Users, Heart, ArrowRight, Plus, Search, Filter, Grid, List, User, LogOut } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { BookCard } from '@/components/BookCard';
 import { BookForm } from '@/components/BookForm';
 import { StatsCard } from '@/components/StatsCard';
+import { Link } from 'react-router-dom';
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,13 +91,35 @@ const Index = () => {
                   className="pl-10 w-64 border-blue-200 focus:border-blue-400"
                 />
               </div>
-              <Button
-                onClick={() => setShowAddForm(true)}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Thêm sách
-              </Button>
+              
+              {/* Navigation Menu */}
+              <div className="flex items-center space-x-2">
+                <Link to="/my-books">
+                  <Button variant="outline" className="border-blue-200 hover:bg-blue-50">
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Sách của tôi
+                  </Button>
+                </Link>
+                <Button
+                  onClick={() => setShowAddForm(true)}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Thêm sách
+                </Button>
+                
+                {/* User Menu */}
+                <div className="flex items-center space-x-2">
+                  <Button variant="ghost" size="sm">
+                    <User className="h-4 w-4" />
+                  </Button>
+                  <Link to="/login">
+                    <Button variant="ghost" size="sm">
+                      <LogOut className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -195,15 +217,14 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="my-books" className="space-y-6">
-            <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-              {mockBooks.filter(book => book.owner === 'current_user').map((book) => (
-                <BookCard
-                  key={book.id}
-                  book={book}
-                  viewMode={viewMode}
-                  showOwnerActions={true}
-                />
-              ))}
+            <div className="text-center py-12">
+              <p className="text-gray-600 mb-4">Xem tất cả sách của bạn trong trang riêng</p>
+              <Link to="/my-books">
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Đi đến Sách của tôi
+                </Button>
+              </Link>
             </div>
           </TabsContent>
 
