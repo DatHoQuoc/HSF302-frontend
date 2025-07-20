@@ -1,12 +1,12 @@
 import api from '@/api'
 
-interface GetAllBooksRequest {
+export interface GetAllBooksRequest {
     page?: number;
     size?: number;
 }
 
 export interface BookInfo {
-    id: string;
+    id: number;
     title: string;
     author: string;
     isbn: string;
@@ -18,7 +18,7 @@ export interface BookInfo {
     shareable: boolean;
 }
 
-interface GetAllBooksResponse {
+export interface GetAllBooksResponse {
     content: BookInfo[];
     number: number;
     size: number;
@@ -29,7 +29,7 @@ interface GetAllBooksResponse {
 }
 
 export interface CreateBookRequest {
-    id: string;
+    id: number;
     title: string;
     authorName: string;
     isbn: string;
@@ -102,7 +102,7 @@ class BookService {
         }
     }
 
-    async toggleArchivedStatus(bookId: string): Promise<void> {
+    async toggleArchivedStatus(bookId: number): Promise<void> {
         try {
             await api.patch<void>(`/books/archived/${bookId}`);
             return;
@@ -112,7 +112,7 @@ class BookService {
             throw new Error(errorMessage);
         }
     }
-    async uploadBookCover(bookId: string, file: File): Promise<void> {
+    async uploadBookCover(bookId: number, file: File): Promise<void> {
         try {
             const formData = new FormData();
             formData.append('file', file);
@@ -126,6 +126,37 @@ class BookService {
         } catch (error) {
             console.error(`Failed to upload cover for book with ID ${bookId}:`, error);
             const errorMessage = error.response?.data?.message || "Không thể tải ảnh bìa sách lên. Vui lòng thử lại.";
+            throw new Error(errorMessage);
+        }
+    }
+     async getAllBooksByOwner(params?: GetAllBooksRequest): Promise<GetAllBooksResponse> {
+        try {
+            const response = await api.get<GetAllBooksResponse>('/books/owner', { params });
+            return response.data;
+        } catch (error) {
+            console.error("Failed to fetch books:", error);
+            const errorMessage = error.response?.data?.message || "Không thể lấy danh sách sách. Vui lòng thử lại.";
+            throw new Error(errorMessage);
+        }
+    }
+
+     async getAllBooksReturned(params?: GetAllBooksRequest): Promise<GetAllBooksResponse> {
+        try {
+            const response = await api.get<GetAllBooksResponse>('/books/returned', { params });
+            return response.data;
+        } catch (error) {
+            console.error("Failed to fetch books:", error);
+            const errorMessage = error.response?.data?.message || "Không thể lấy danh sách sách. Vui lòng thử lại.";
+            throw new Error(errorMessage);
+        }
+    }
+      async getAllBooksBorrowed(params?: GetAllBooksRequest): Promise<GetAllBooksResponse> {
+        try {
+            const response = await api.get<GetAllBooksResponse>('/books/borrowed', { params });
+            return response.data;
+        } catch (error) {
+            console.error("Failed to fetch books:", error);
+            const errorMessage = error.response?.data?.message || "Không thể lấy danh sách sách. Vui lòng thử lại.";
             throw new Error(errorMessage);
         }
     }

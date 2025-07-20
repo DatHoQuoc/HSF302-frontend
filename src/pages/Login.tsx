@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { authenticationService } from '@/service/authenticationService';
+import { authenticationService } from '@/service/AuthenticationService';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -61,6 +61,7 @@ const Login = () => {
   const handleGoogleLogin = () => {
     // TODO: Implement Google OAuth login
     console.log('Google login');
+    localStorage.clear();
   };
 
   return (

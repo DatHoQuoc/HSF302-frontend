@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Filter, Edit, Trash2, Eye, Share2, Archive, Upload, Star, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,98 +7,181 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BookForm } from '@/components/BookForm';
 import { BookDetailsModal } from '@/components/BookDetailsModal';
-import { FeedbackSection } from '@/components/FeedbackSection';
 import { useNavigate } from 'react-router-dom';
+import { bookService, BookInfo, GetAllBooksRequest } from '@/service/BookService';
+import { useToast } from '@/hooks/use-toast';
+interface MyBooksProps {
+  page?: number;
+  size?: number;
+}
 
-const MyBooks = () => {
+const MyBooks: React.FC<MyBooksProps> = ({ page = 0, size = 10 }) => {
   const navigate = useNavigate();
+  const { toast } = useToast(); 
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedBook, setSelectedBook] = useState<any>(null);
+  const [selectedBook, setSelectedBook] = useState<BookInfo | null>(null);
   const [showBookDetails, setShowBookDetails] = useState(false);
+  const [books, setBooks] = useState<BookInfo[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(page);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Mock data - in real app this would come from API
-  const mockMyBooks = [
-    {
-      id: 1,
-      title: "Clean Code: A Handbook of Agile Software Craftsmanship",
-      author: "Robert C. Martin",
-      synopsis: "A comprehensive guide to writing maintainable and efficient code that every developer should read.",
-      isbn: "978-0132350884",
-      rating: 4.5,
-      cover: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=600&fit=crop",
-      shareable: true,
-      archived: false,
-      owner: "current_user",
-      createdDate: "2024-01-15",
-      borrowCount: 5
-    },
-    {
-      id: 2,
-      title: "JavaScript: The Definitive Guide",
-      author: "David Flanagan",
-      synopsis: "The comprehensive reference and guide to JavaScript programming language.",
-      isbn: "978-1491952023",
-      rating: 4.3,
-      cover: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop",
-      shareable: false,
-      archived: false,
-      owner: "current_user",
-      createdDate: "2024-02-10",
-      borrowCount: 2
-    },
-    {
-      id: 3,
-      title: "Design Patterns",
-      author: "Gang of Four",
-      synopsis: "Elements of reusable object-oriented software design patterns.",
-      isbn: "978-0201633612",
-      rating: 4.7,
-      cover: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=600&fit=crop",
-      shareable: true,
-      archived: true,
-      owner: "current_user",
-      createdDate: "2023-12-05",
-      borrowCount: 8
-    }
-  ];
+  // --- Effect để tải dữ liệu sách ---
+  useEffect(() => {
+    const fetchBooks = async () => {
+      setLoading(true);
+      setError(null);
 
-  const activeBooks = mockMyBooks.filter(book => !book.archived);
-  const archivedBooks = mockMyBooks.filter(book => book.archived);
+      try {
+        const params: GetAllBooksRequest = { page: currentPage, size: size };
+        const response = await bookService.getAllBooksByOwner(params);
 
-  const handleEditBook = (book: any) => {
+        setBooks(response.content);
+        setTotalPages(response.totalPages);
+      } catch (err) {
+        console.error("Lỗi khi tải sách:", err);
+        const errorMessage = err.message || "Không thể tải danh sách sách. Vui lòng thử lại.";
+        toast({
+          title: "Lỗi tải sách",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, [currentPage, size, refreshTrigger, toast]); 
+
+  const activeBooks = books.filter(book => !book.archived);
+  const archivedBooks = books.filter(book => book.archived);
+
+  const filteredActiveBooks = activeBooks.filter(book =>
+    book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    book.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    book.isbn.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredArchivedBooks = archivedBooks.filter(book =>
+    book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    book.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    book.isbn.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // --- Callbacks xử lý các hành động trên sách ---
+
+  const handleEditBook = useCallback((book: BookInfo) => {
     setSelectedBook(book);
     setShowAddForm(true);
-  };
+  }, []);
 
-  const handleViewBook = (book: any) => {
+  const handleViewBook = useCallback((book: BookInfo) => {
     setSelectedBook(book);
     setShowBookDetails(true);
-  };
+  }, []);
 
-  const handleDeleteBook = (bookId: number) => {
-    if (confirm('Bạn có chắc chắn muốn xóa sách này?')) {
-      // TODO: Implement delete logic
-      console.log('Delete book:', bookId);
+  const handleDeleteBook = useCallback(async (bookId: number) => {
+    if (confirm('Bạn có chắc chắn muốn xóa sách này? Hành động này không thể hoàn tác.')) {
+      try {
+        //await bookService.deleteBook(bookId);
+        setRefreshTrigger(prev => prev + 1);
+        toast({
+          title: "Thành công!",
+          description: "Sách đã được xóa thành công.",
+        });
+      } catch (err) {
+        console.error("Lỗi khi xóa sách:", err);
+        const errorMessage = err.message || "Không thể xóa sách. Vui lòng thử lại.";
+        toast({
+          title: "Lỗi xóa sách",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     }
-  };
+  }, [toast]);
 
-  const handleToggleShareable = (bookId: number) => {
-    // TODO: Implement toggle shareable logic
-    console.log('Toggle shareable:', bookId);
-  };
+  const handleToggleShareable = useCallback(async (bookId: number) => {
+    try {
+      await bookService.toggleShareableStatus(bookId);
+      setRefreshTrigger(prev => prev + 1);
+      toast({
+        title: "Thành công!",
+        description: "Trạng thái chia sẻ của sách đã được cập nhật.",
+      });
+    } catch (err) {
+      console.error("Lỗi khi cập nhật trạng thái chia sẻ:", err);
+      const errorMessage = err.message || "Không thể cập nhật trạng thái chia sẻ.";
+      toast({
+        title: "Lỗi cập nhật",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
 
-  const handleToggleArchive = (bookId: number) => {
-    // TODO: Implement toggle archive logic
-    console.log('Toggle archive:', bookId);
-  };
+  const handleToggleArchive = useCallback(async (bookId: number) => {
+    try {
+      await bookService.toggleArchivedStatus(bookId);
+      setRefreshTrigger(prev => prev + 1);
+      toast({
+        title: "Thành công!",
+        description: "Trạng thái lưu trữ của sách đã được cập nhật.",
+      });
+    } catch (err) {
+      console.error("Lỗi khi cập nhật trạng thái lưu trữ:", err);
+      const errorMessage = err.message || "Không thể cập nhật trạng thái lưu trữ.";
+      toast({
+        title: "Lỗi cập nhật",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
 
-  const handleUploadCover = (bookId: number) => {
-    // TODO: Implement upload cover logic
-    console.log('Upload cover for book:', bookId);
-  };
+  const handleUploadCover = useCallback(async (bookId: number, file: File) => {
+    if (!file) {
+      toast({
+        title: "Lỗi tải ảnh bìa",
+        description: "Vui lòng chọn một tệp ảnh.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      await bookService.uploadBookCover(bookId, file);
+      setRefreshTrigger(prev => prev + 1);
+      toast({
+        title: "Thành công!",
+        description: "Ảnh bìa đã được tải lên thành công.",
+      });
+    } catch (err) {
+      console.error("Lỗi khi tải ảnh bìa:", err);
+      const errorMessage = err.message || "Không thể tải lên ảnh bìa.";
+      toast({
+        title: "Lỗi tải ảnh bìa",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
 
-  const BookCard = ({ book, showArchiveActions = false }: { book: any; showArchiveActions?: boolean }) => (
+  const handleFormSuccess = useCallback(() => {
+    setShowAddForm(false);
+    setSelectedBook(null);
+    setRefreshTrigger(prev => prev + 1);
+    toast({
+      title: "Thành công!",
+      description: "Sách đã được lưu thành công.",
+    }); // Thường thì toast này sẽ được gọi từ BookForm
+  }, [toast]);
+
+  const BookCard = ({ book, showArchiveActions = false }: { book: BookInfo; showArchiveActions?: boolean }) => (
     <Card className="group hover:shadow-lg transition-all duration-300 border-blue-100">
       <div className="relative">
         <img
@@ -108,11 +190,23 @@ const MyBooks = () => {
           className="w-full h-48 object-cover rounded-t-lg"
         />
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Input
+            id={`upload-cover-${book.id}`}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleUploadCover(book.id, e.target.files[0]);
+              }
+            }}
+          />
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => handleUploadCover(book.id)}
+            onClick={() => document.getElementById(`upload-cover-${book.id}`)?.click()}
             className="bg-white/90 hover:bg-white"
+            title="Tải ảnh bìa"
           >
             <Upload className="h-4 w-4" />
           </Button>
@@ -142,7 +236,7 @@ const MyBooks = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1">
               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              <span className="text-sm font-medium">{book.rating}</span>
+              <span className="text-sm font-medium">{book.rate}</span>
             </div>
             <Badge variant={book.shareable ? "default" : "secondary"}>
               {book.shareable ? "Có thể chia sẻ" : "Riêng tư"}
@@ -150,11 +244,11 @@ const MyBooks = () => {
           </div>
 
           <div className="text-xs text-gray-500">
-            <p>Đã mượn: {book.borrowCount} lần</p>
-            <p>Tạo ngày: {new Date(book.createdDate).toLocaleDateString('vi-VN')}</p>
+            {/* <p>Đã mượn: {book.borrowCount || 0} lần</p>
+            <p>Tạo ngày: {book.createdDate ? new Date(book.createdDate).toLocaleDateString('vi-VN') : 'N/A'}</p> */}
           </div>
 
-          <div className="flex space-x-2 pt-2 border-t">
+          <div className="flex space-x-2 pt-2 border-t mt-4">
             <Button
               size="sm"
               variant="outline"
@@ -180,6 +274,7 @@ const MyBooks = () => {
                   variant="outline"
                   onClick={() => handleToggleShareable(book.id)}
                   className={book.shareable ? "text-blue-600" : ""}
+                  title={book.shareable ? "Chuyển thành Riêng tư" : "Chuyển thành Có thể chia sẻ"}
                 >
                   <Share2 className="h-4 w-4" />
                 </Button>
@@ -187,6 +282,7 @@ const MyBooks = () => {
                   size="sm"
                   variant="outline"
                   onClick={() => handleToggleArchive(book.id)}
+                  title="Lưu trữ sách"
                 >
                   <Archive className="h-4 w-4" />
                 </Button>
@@ -197,6 +293,7 @@ const MyBooks = () => {
                 variant="outline"
                 onClick={() => handleToggleArchive(book.id)}
                 className="text-green-600"
+                title="Khôi phục sách"
               >
                 Khôi phục
               </Button>
@@ -206,6 +303,7 @@ const MyBooks = () => {
               variant="outline"
               onClick={() => handleDeleteBook(book.id)}
               className="text-red-600 hover:text-red-700"
+              title="Xóa sách"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -215,15 +313,34 @@ const MyBooks = () => {
     </Card>
   );
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <p className="text-lg text-gray-700">Đang tải sách của bạn...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <Card className="p-8 text-center bg-red-50 border-red-200">
+          <CardTitle className="text-red-700 mb-4">Lỗi khi tải sách</CardTitle>
+          <CardDescription className="text-red-600">{error}</CardDescription>
+          <Button onClick={() => setRefreshTrigger(prev => prev + 1)} className="mt-6">Thử lại</Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <div className="container mx-auto px-6 py-8">
-        {/* Header */}
         <Button
           onClick={() => {
-            navigate('/home'); 
+            navigate('/home');
           }}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 mb-6"
         >
           <Home className="h-4 w-4 mr-2" />
           Trở về trang chủ
@@ -245,13 +362,12 @@ const MyBooks = () => {
           </Button>
         </div>
 
-        {/* Search and Filter */}
         <div className="flex items-center space-x-4 mb-6">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               type="text"
-              placeholder="Tìm kiếm sách..."
+              placeholder="Tìm kiếm sách theo tiêu đề, tác giả, ISBN..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -263,54 +379,78 @@ const MyBooks = () => {
           </Button>
         </div>
 
-        {/* Tabs */}
         <Tabs defaultValue="active" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="active">
-              Đang hoạt động ({activeBooks.length})
+              Đang hoạt động ({filteredActiveBooks.length})
             </TabsTrigger>
             <TabsTrigger value="archived">
-              Đã lưu trữ ({archivedBooks.length})
+              Đã lưu trữ ({filteredArchivedBooks.length})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="active" className="space-y-6">
-            {activeBooks.length > 0 ? (
+            {filteredActiveBooks.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {activeBooks.map((book) => (
+                {filteredActiveBooks.map((book) => (
                   <BookCard key={book.id} book={book} />
                 ))}
               </div>
             ) : (
               <Card className="text-center py-12">
                 <CardContent>
-                  <p className="text-gray-500 mb-4">Bạn chưa có sách nào</p>
-                  <Button
-                    onClick={() => {
-                      setSelectedBook(null);
-                      setShowAddForm(true);
-                    }}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Thêm sách đầu tiên
-                  </Button>
+                  <p className="text-gray-500 mb-4">
+                    {searchQuery ? "Không tìm thấy sách nào khớp với tìm kiếm của bạn trong mục đang hoạt động." : "Bạn chưa có sách nào đang hoạt động."}
+                  </p>
+                  {!searchQuery && (
+                    <Button
+                      onClick={() => {
+                        setSelectedBook(null);
+                        setShowAddForm(true);
+                      }}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Thêm sách đầu tiên
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
+            )}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center space-x-4 mt-6">
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                  disabled={currentPage === 0}
+                  variant="outline"
+                >
+                  Trang trước
+                </Button>
+                <span> Trang {currentPage + 1} / {totalPages} </span>
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                  disabled={currentPage >= totalPages - 1}
+                  variant="outline"
+                >
+                  Trang sau
+                </Button>
+              </div>
             )}
           </TabsContent>
 
           <TabsContent value="archived" className="space-y-6">
-            {archivedBooks.length > 0 ? (
+            {filteredArchivedBooks.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {archivedBooks.map((book) => (
+                {filteredArchivedBooks.map((book) => (
                   <BookCard key={book.id} book={book} showArchiveActions={true} />
                 ))}
               </div>
             ) : (
               <Card className="text-center py-12">
                 <CardContent>
-                  <p className="text-gray-500">Không có sách nào được lưu trữ</p>
+                  <p className="text-gray-500">
+                    {searchQuery ? "Không tìm thấy sách đã lưu trữ nào khớp với tìm kiếm của bạn." : "Không có sách nào được lưu trữ."}
+                  </p>
                 </CardContent>
               </Card>
             )}
@@ -318,7 +458,6 @@ const MyBooks = () => {
         </Tabs>
       </div>
 
-      {/* Add/Edit Book Form Modal */}
       {showAddForm && (
         <BookForm
           book={selectedBook}
@@ -326,10 +465,10 @@ const MyBooks = () => {
             setShowAddForm(false);
             setSelectedBook(null);
           }}
+         // onSuccess={handleFormSuccess}
         />
       )}
 
-      {/* Book Details Modal */}
       {showBookDetails && selectedBook && (
         <BookDetailsModal
           book={selectedBook}

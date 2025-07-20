@@ -13,7 +13,7 @@ interface Book {
   author: string;
   synopsis: string;
   isbn: string;
-  rating: number;
+  rate: number;
   cover: string;
   shareable: boolean;
   archived: boolean;
@@ -78,10 +78,10 @@ export const BookCard: React.FC<BookCardProps> = ({
                 alt={book.title}
                 className="w-24 h-32 object-cover rounded-lg shadow-md"
               />
-              {book.rating && (
+              {book.rate && (
                 <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
                   <Star className="h-3 w-3 fill-current" />
-                  {book.rating}
+                  {book.rate}
                 </div>
               )}
             </div>
@@ -242,10 +242,10 @@ export const BookCard: React.FC<BookCardProps> = ({
         </div>
 
         {/* Rating Badge */}
-        {book.rating && (
+        {book.rate && (
           <div className="absolute top-3 right-3 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
             <Star className="h-3 w-3 fill-current" />
-            {book.rating}
+            {book.rate}
           </div>
         )}
 
