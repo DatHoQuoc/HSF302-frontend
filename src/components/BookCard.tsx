@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from '@/hooks/use-toast';
-
+import {bookService} from '@/service/BookService'
 interface Book {
   id: number;
   title: string;
@@ -27,19 +27,28 @@ interface BookCardProps {
   showOwnerActions?: boolean;
 }
 
-export const BookCard: React.FC<BookCardProps> = ({ 
-  book, 
-  viewMode, 
-  showActions = false, 
-  showOwnerActions = false 
+export const BookCard: React.FC<BookCardProps> = ({
+  book,
+  viewMode,
+  showActions = false,
+  showOwnerActions = false
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  const handleBorrow = () => {
-    toast({
-      title: "Yêu cầu mượn sách",
-      description: `Đã gửi yêu cầu mượn "${book.title}"`,
-    });
+  const handleBorrow = async () => {
+    try {
+      await bookService.borrowBook(book.id);
+      toast({
+        title: "Yêu cầu mượn sách",
+        description: `Đã gửi yêu cầu mượn "${book.title}"`,
+      });
+    } catch (error) {
+      toast({
+        title: "Yêu cầu mượn sách thất bại",
+        description: `Chưa gửi yêu cầu mượn "${book.title}"`,
+      });
+    }
+
   };
 
   const handleToggleShareable = () => {
@@ -65,7 +74,7 @@ export const BookCard: React.FC<BookCardProps> = ({
 
   if (viewMode === 'list') {
     return (
-      <Card 
+      <Card
         className="transition-all duration-300 hover:shadow-lg border-blue-100 hover:border-blue-300"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -139,23 +148,23 @@ export const BookCard: React.FC<BookCardProps> = ({
                       <Button variant="outline" size="sm">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={handleToggleShareable}
                         className={book.shareable ? 'text-green-600' : 'text-gray-600'}
                       >
                         <Share2 className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={handleUploadCover}
                       >
                         <Upload className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={handleToggleArchived}
                         className={book.archived ? 'text-orange-600' : 'text-gray-600'}
@@ -178,7 +187,7 @@ export const BookCard: React.FC<BookCardProps> = ({
   }
 
   return (
-    <Card 
+    <Card
       className="group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-blue-100 hover:border-blue-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -189,7 +198,7 @@ export const BookCard: React.FC<BookCardProps> = ({
           alt={book.title}
           className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
         />
-        
+
         {/* Overlay */}
         <div className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
           <div className="absolute inset-0 flex items-center justify-center">
@@ -215,16 +224,16 @@ export const BookCard: React.FC<BookCardProps> = ({
                   <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={handleToggleShareable}
                     className="bg-white/10 border-white/20 text-white hover:bg-white/20"
                   >
                     <Share2 className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={handleUploadCover}
                     className="bg-white/10 border-white/20 text-white hover:bg-white/20"
@@ -272,7 +281,7 @@ export const BookCard: React.FC<BookCardProps> = ({
         <p className="text-xs text-gray-500 line-clamp-2 mb-3">
           {book.synopsis}
         </p>
-        
+
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
@@ -284,7 +293,7 @@ export const BookCard: React.FC<BookCardProps> = ({
               {book.owner === 'current_user' ? 'Sách của tôi' : 'Người dùng khác'}
             </span>
           </div>
-          
+
           <span className="text-xs text-gray-400">
             #{book.id}
           </span>
