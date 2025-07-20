@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { authenticationService } from '@/service/authenticationService'; // Adjust path
+import { authenticationService } from '@/service/AuthenticationService'; // Adjust path
 
 
 const ActivateAccount = () => {

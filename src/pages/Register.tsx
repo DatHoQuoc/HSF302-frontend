@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { authenticationService } from '@/service/authenticationService'; // Adjust path if needed
+import { authenticationService } from '@/service/AuthenticationService'; // Adjust path if needed
 
 const Register = () => {
   const navigate = useNavigate();

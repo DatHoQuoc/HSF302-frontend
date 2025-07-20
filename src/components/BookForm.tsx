@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Upload, Book } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,29 +8,59 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
-
+import { bookService } from '@/service/BookService'
+import { CreateBookRequest, BookInfo } from '@/service/BookService';
 interface BookFormProps {
   onClose: () => void;
-  book?: any;
+  book?: BookInfo;
 }
 
 export const BookForm: React.FC<BookFormProps> = ({ onClose, book }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CreateBookRequest>({
+    id: book?.id || '',
     title: book?.title || '',
-    author: book?.author || '',
+    authorName: book?.author || '',
     isbn: book?.isbn || '',
     synopsis: book?.synopsis || '',
     shareable: book?.shareable || false,
   });
-
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>(book?.cover || '');
+  const [loading, setLoading] = useState<boolean>(false); // State for loading indicator
+
+
+
+  useEffect(() => {
+    if (book) {
+      setFormData({
+        id: book?.id || '',
+        title: book.title || '',
+        authorName: book.author || '',
+        isbn: book.isbn || '',
+        synopsis: book.synopsis || '',
+        shareable: book.shareable || false,
+      });
+      setCoverPreview(book.cover || '');
+      setCoverFile(null);
+    } else {
+      setFormData({
+        id: '',
+        title: '',
+        authorName: '',
+        isbn: '',
+        synopsis: '',
+        shareable: false,
+      });
+      setCoverFile(null);
+      setCoverPreview('');
+    }
+  }, [book]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name === 'author' ? 'authorName' : name]: value // Map 'author' from form to 'authorName' for API
     }));
   };
 
@@ -50,30 +80,64 @@ export const BookForm: React.FC<BookFormProps> = ({ onClose, book }) => {
         setCoverPreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
+    } else {
+      setCoverFile(null);
+      setCoverPreview('');
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
-    if (!formData.title || !formData.author || !formData.isbn) {
+    if (!formData.title || !formData.authorName || !formData.isbn) {
       toast({
         title: 'Lỗi',
-        description: 'Vui lòng điền đầy đủ thông tin bắt buộc',
+        description: 'Vui lòng điền đầy đủ thông tin bắt buộc (Tiêu đề, Tác giả, ISBN)',
         variant: 'destructive'
       });
       return;
     }
 
-    // In a real app, this would make API calls
-    toast({
-      title: book ? 'Cập nhật thành công' : 'Thêm sách thành công',
-      description: `"${formData.title}" đã được ${book ? 'cập nhật' : 'thêm vào'} thư viện`,
-    });
+    setLoading(true); // Start loading
 
-    onClose();
+    try {
+      if (book && book.id) {
+        if (coverFile) {
+          await bookService.uploadBookCover(book.id, coverFile);
+          toast({
+            title: 'Cập nhật ảnh bìa thành công',
+            description: `Ảnh bìa của "${formData.title}" đã được cập nhật.`,
+          });
+        }
+        toast({
+          title: 'Cập nhật thành công',
+          description: `"${formData.title}" đã được cập nhật.`,
+        });
+
+      } else {    
+        await bookService.createBook(formData);
+
+        toast({
+          title: 'Thêm sách thành công',
+          description: `"${formData.title}" đã được thêm vào thư viện`,
+        });
+      }
+
+      onClose();
+
+    } catch (error) {
+      console.error("Form submission error:", error);
+      toast({
+        title: 'Lỗi',
+        description: error.message || 'Đã xảy ra lỗi trong quá trình xử lý.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false); // End loading
+    }
   };
+
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -145,7 +209,7 @@ export const BookForm: React.FC<BookFormProps> = ({ onClose, book }) => {
                 <Input
                   id="author"
                   name="author"
-                  value={formData.author}
+                  value={formData.authorName}
                   onChange={handleInputChange}
                   placeholder="Nhập tên tác giả"
                   required

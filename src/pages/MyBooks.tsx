@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Edit, Trash2, Eye, Share2, Archive, Upload, Star } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, Share2, Archive, Upload, Star, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,8 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BookForm } from '@/components/BookForm';
 import { BookDetailsModal } from '@/components/BookDetailsModal';
 import { FeedbackSection } from '@/components/FeedbackSection';
+import { useNavigate } from 'react-router-dom';
 
 const MyBooks = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedBook, setSelectedBook] = useState<any>(null);
@@ -122,7 +124,7 @@ const MyBooks = () => {
           </Badge>
         )}
       </div>
-      
+
       <CardContent className="p-4">
         <div className="space-y-3">
           <div>
@@ -217,6 +219,15 @@ const MyBooks = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <div className="container mx-auto px-6 py-8">
         {/* Header */}
+        <Button
+          onClick={() => {
+            navigate('/home'); 
+          }}
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+        >
+          <Home className="h-4 w-4 mr-2" />
+          Trở về trang chủ
+        </Button>
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Sách của tôi</h1>
