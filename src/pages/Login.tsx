@@ -59,9 +59,8 @@ const Login = () => {
   };
 
   const handleGoogleLogin = () => {
-    // TODO: Implement Google OAuth login
-    console.log('Google login');
-    localStorage.clear();
+    window.location.href = `http://localhost:8088/api/v1/oauth2/authorization/google`;
+    
   };
 
   return (

@@ -105,7 +105,7 @@ const Index = () => {
             // Apply search query here if you want to filter "All Books"
             fetchAllBooks({
                 page: 0,
-                size: 10, // Or whatever default page/size you want
+                size: 3, // Or whatever default page/size you want
                 //title: searchQuery // Pass search query if your API supports it
             });
         } else if (activeTab === 'borrowed') {

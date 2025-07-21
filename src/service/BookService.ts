@@ -3,6 +3,7 @@ import api from '@/api'
 export interface GetAllBooksRequest {
     page?: number;
     size?: number;
+    //search?: string;
 }
 
 export interface BookInfo {

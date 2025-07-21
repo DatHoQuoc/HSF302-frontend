@@ -15,7 +15,7 @@ interface MyBooksProps {
   size?: number;
 }
 
-const MyBooks: React.FC<MyBooksProps> = ({ page = 0, size = 10 }) => {
+const MyBooks: React.FC<MyBooksProps> = ({ page = 0, size = 3 }) => {
   const navigate = useNavigate();
   const { toast } = useToast(); 
   const [searchQuery, setSearchQuery] = useState('');
