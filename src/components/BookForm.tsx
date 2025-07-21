@@ -146,20 +146,21 @@ export const BookForm: React.FC<BookFormProps> = ({ onClose, book }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="flex items-center gap-2">
-            <Book className="h-5 w-5 text-blue-600" />
-            {book ? "Cập nhật sách" : "Thêm sách mới"}
-          </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0">
-            <X className="h-4 w-4" />
-          </Button>
-        </CardHeader>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="w-full max-w-2xl min-h-[90vh] flex items-center justify-center py-8">
+        <Card className="w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 flex-shrink-0">
+            <CardTitle className="flex items-center gap-2">
+              <Book className="h-5 w-5 text-blue-600" />
+              {book ? "Cập nhật sách" : "Thêm sách mới"}
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0">
+              <X className="h-4 w-4" />
+            </Button>
+          </CardHeader>
 
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <CardContent className="overflow-y-auto flex-1 min-h-0">
+            <form onSubmit={handleSubmit} className="space-y-6 p-6">
             {/* Cover Upload */}
             <div className="space-y-2">
               <Label>Ảnh bìa sách</Label>
@@ -258,9 +259,10 @@ export const BookForm: React.FC<BookFormProps> = ({ onClose, book }) => {
                 {book ? "Cập nhật" : "Thêm sách"}
               </Button>
             </div>
-          </form>
-        </CardContent>
-      </Card>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

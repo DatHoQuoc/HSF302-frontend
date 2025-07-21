@@ -323,6 +323,7 @@ const Index = () => {
                                         book={book}
                                         viewMode={viewMode}
                                         showActions={true}
+                                        onBookUpdate={() => fetchAllBooks({ page: 0, size: 10 })}
                                     />
                                 ))}
                             </div>
@@ -357,7 +358,8 @@ const Index = () => {
                                         key={book.id}
                                         book={book}
                                         viewMode={viewMode}
-                                        showActions={true}
+                                        showOwnerActions={true}
+                                        onBookUpdate={() => fetchMyBooks({ page: 0, size: 10 })}
                                     />
                                 ))}
                             </div>
@@ -392,7 +394,8 @@ const Index = () => {
                                         key={book.id}
                                         book={book}
                                         viewMode={viewMode}
-                                        showActions={true}
+                                        showReturnActions={true}
+                                        onBookUpdate={() => fetchBorrowedBooks({ page: 0, size: 10 })}
                                     />
                                 ))}
                             </div>
@@ -427,7 +430,8 @@ const Index = () => {
                                         key={book.id}
                                         book={book}
                                         viewMode={viewMode}
-                                        showActions={true}
+                                        showApprovalActions={true}
+                                        onBookUpdate={() => fetchReturnedBooks({ page: 0, size: 10 })}
                                     />
                                 ))}
                             </div>

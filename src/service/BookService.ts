@@ -37,6 +37,31 @@ export interface CreateBookRequest {
     shareable: boolean;
 }
 
+export interface FeedbackRequest {
+    note: number;
+    comment: string;
+    bookId: number;
+}
+
+export interface FeedbackInfo {
+    id: number;
+    note: number;
+    comment: string;
+    ownFeedback: boolean;
+    createdDate: string;
+    bookId: number;
+}
+
+export interface GetFeedbacksResponse {
+    content: FeedbackInfo[];
+    number: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    first: boolean;
+    last: boolean;
+}
+
 class BookService {
     async getAllBooks(params?: GetAllBooksRequest): Promise<GetAllBooksResponse> {
         try {
@@ -160,6 +185,28 @@ class BookService {
             throw new Error(errorMessage);
         }
     }
+    async createFeedback(feedbackData: FeedbackRequest): Promise<void> {
+        try {
+            await api.post<void>('/feedbacks', feedbackData);
+            return;
+        } catch (error) {
+            console.error("Failed to create feedback:", error);
+            const errorMessage = error.response?.data?.message || "Không thể gửi đánh giá. Vui lòng thử lại.";
+            throw new Error(errorMessage);
+        }
+    }
+
+    async getFeedbacksByBook(bookId: number, params?: GetAllBooksRequest): Promise<GetFeedbacksResponse> {
+        try {
+            const response = await api.get<GetFeedbacksResponse>(`/feedbacks/book/${bookId}`, { params });
+            return response.data;
+        } catch (error) {
+            console.error(`Failed to fetch feedbacks for book ${bookId}:`, error);
+            const errorMessage = error.response?.data?.message || "Không thể lấy danh sách đánh giá. Vui lòng thử lại.";
+            throw new Error(errorMessage);
+        }
+    }
+
 }
 
 export const bookService = new BookService();
