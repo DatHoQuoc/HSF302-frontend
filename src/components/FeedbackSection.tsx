@@ -1,371 +1,358 @@
 "use client"
 
+import type React from "react"
 import { useState, useEffect } from "react"
-import {
-  Star,
-  Send,
-  MessageCircle,
-  ThumbsUp,
-  Flag,
-  Loader2,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react"
+import { Star, MessageCircle, Edit, Trash2, Plus, Send, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { bookService, type FeedbackInfo, type FeedbackRequest } from "@/service/BookService"
+import { Separator } from "@/components/ui/separator"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { bookService } from "@/service/BookService"
+import type { FeedbackInfo, UserProfile } from "@/service/BookService"
+import { useToast } from "@/hooks/use-toast"
 
 interface FeedbackSectionProps {
   bookId: number
+  currentUser?: UserProfile | null
 }
 
-export const FeedbackSection = ({ bookId }: FeedbackSectionProps) => {
-  const [newFeedback, setNewFeedback] = useState("")
-  const [rating, setRating] = useState(0)
-  const [hoveredRating, setHoveredRating] = useState(0)
+export const FeedbackSection: React.FC<FeedbackSectionProps> = ({ bookId, currentUser }) => {
+  const { toast } = useToast()
   const [feedbacks, setFeedbacks] = useState<FeedbackInfo[]>([])
-  const [loading, setLoading] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
-  const [totalElements, setTotalElements] = useState(0)
-  const pageSize = 10
+  const [showModal, setShowModal] = useState(false)
+  const [editingFeedback, setEditingFeedback] = useState<FeedbackInfo | null>(null)
+  const [newFeedback, setNewFeedback] = useState({ note: "", rating: 5 })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Load feedbacks when component mounts or page changes
+  // Load feedbacks
   useEffect(() => {
     loadFeedbacks()
-  }, [bookId, currentPage])
+  }, [bookId])
 
   const loadFeedbacks = async () => {
-    setLoading(true)
-    setError(null)
-
     try {
-      const response = await bookService.getFeedbacksByBook(bookId, {
-        page: currentPage,
-        size: pageSize,
-      })
-
-      setFeedbacks(response.content)
-      setTotalPages(response.totalPages)
-      setTotalElements(response.totalElements)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải đánh giá")
-      console.error("Error loading feedbacks:", err)
+      setIsLoading(true)
+      setError(null)
+      const feedbackData = await bookService.getFeedbacksByBook(bookId)
+      setFeedbacks(feedbackData.content)
+    } catch (error) {
+      console.error("Error loading feedbacks:", error)
+      setError(error.message || "Unable to load feedbacks")
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
   const handleSubmitFeedback = async () => {
-    if (!newFeedback.trim() || rating === 0) {
-      setError("Vui lòng nhập đánh giá và chọn số sao!")
+    if (!newFeedback.note.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a feedback note",
+        variant: "destructive",
+      })
       return
     }
 
-    setSubmitting(true)
-    setError(null)
-
     try {
-      const feedbackData: FeedbackRequest = {
-        note: rating,
-        comment: newFeedback.trim(),
-        bookId: bookId,
+      setIsSubmitting(true)
+
+      if (editingFeedback) {
+        await bookService.updateFeedback(editingFeedback.id, {
+          comment: newFeedback.note,
+          note: newFeedback.rating,
+        })
+        toast({
+          title: "Feedback Updated",
+          description: "Your feedback has been updated successfully",
+        })
+      } else {
+        await bookService.createFeedback({
+          bookId: bookId,
+          note: newFeedback.rating,        // rating should go to note (number)
+          comment: newFeedback.note.trim() // comment text should go to comment (string)
+        })
+        toast({
+          title: "Feedback Added",
+          description: "Your feedback has been added successfully",
+        })
       }
 
-      await bookService.createFeedback(feedbackData)
-
-      // Reset form
-      setNewFeedback("")
-      setRating(0)
-
-      // Reload feedbacks to show the new one
-      setCurrentPage(0) // Go back to first page to see new feedback
+      // Reset form and reload feedbacks
+      setNewFeedback({ note: "", rating: 5 })
+      setShowModal(false)
+      setEditingFeedback(null)
       await loadFeedbacks()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi khi gửi đánh giá")
-      console.error("Error submitting feedback:", err)
+    } catch (error) {
+      console.error("Error submitting feedback:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Unable to submit feedback",
+        variant: "destructive",
+      })
     } finally {
-      setSubmitting(false)
+      setIsSubmitting(false)
     }
   }
 
-  const handleLikeFeedback = (feedbackId: number) => {
-    // TODO: Implement like feedback API when available
-    console.log("Like feedback:", feedbackId)
+  const handleEditFeedback = (feedback: FeedbackInfo) => {
+    setEditingFeedback(feedback)
+    setNewFeedback({
+      note: feedback.comment,
+      rating: feedback.note,
+    })
+    setShowModal(true)
   }
 
-  const handleReportFeedback = (feedbackId: number) => {
-    // TODO: Implement report feedback API when available
-    console.log("Report feedback:", feedbackId)
-  }
+  const handleDeleteFeedback = async (feedbackId: number) => {
+    if (!confirm("Are you sure you want to delete this feedback?")) {
+      return
+    }
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 0 && newPage < totalPages) {
-      setCurrentPage(newPage)
+    try {
+      await bookService.deleteFeedback(feedbackId)
+      toast({
+        title: "Feedback Deleted",
+        description: "Feedback has been deleted successfully",
+      })
+      await loadFeedbacks()
+    } catch (error) {
+      console.error("Error deleting feedback:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Unable to delete feedback",
+        variant: "destructive",
+      })
     }
   }
 
-  // Calculate average rating
-  const averageRating =
-    feedbacks.length > 0 ? feedbacks.reduce((sum, feedback) => sum + feedback.note, 0) / feedbacks.length : 0
-
-  // Helper function to get user display name
-  const getUserDisplayName = (feedback: FeedbackInfo) => {
-    if (feedback.userInfo) {
-      return `${feedback.userInfo.firstName} ${feedback.userInfo.lastName}`
-    }
-    return `Người dùng #${feedback.id || "Unknown"}`
+  const handleCancelEdit = () => {
+    setShowModal(false)
+    setEditingFeedback(null)
+    setNewFeedback({ note: "", rating: 5 })
   }
 
-  // Helper function to get user initials
-  const getUserInitials = (feedback: FeedbackInfo) => {
-    if (feedback.userInfo?.firstName && feedback.userInfo?.lastName) {
-      return `${feedback.userInfo.firstName[0]}${feedback.userInfo.lastName[0]}`.toUpperCase()
-    }
-    if (feedback.id) {
-      return feedback.id.toString().slice(-2)
-    }
-    return "ND"
+  const getUserInitials = (user: UserProfile | undefined) => {
+    if (!user) return "U"
+    return `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase()
+  }
+
+  const getUserDisplayName = (user: UserProfile | undefined) => {
+    if (!user) return "Anonymous User"
+    return user.fullName || `${user.firstName} ${user.lastName}` || user.email || "User"
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  const renderStars = (rating: number, interactive = false, onRatingChange?: (rating: number) => void) => {
+    return (
+      <div className="flex items-center space-x-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`h-4 w-4 ${star <= rating ? "text-yellow-400 fill-current" : "text-gray-300"
+              } ${interactive ? "cursor-pointer hover:text-yellow-400" : ""}`}
+            onClick={interactive && onRatingChange ? () => onRatingChange(star) : undefined}
+          />
+        ))}
+        <span className="text-sm text-gray-600 ml-2">({rating}/5)</span>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Loading feedbacks...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    )
   }
 
   return (
-    <div className="max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-      <div className="space-y-6 p-1">
-        <div className="flex items-center justify-between sticky top-0 bg-white z-10 pb-2 border-b">
-          <h3 className="text-lg font-semibold flex items-center">
-            <MessageCircle className="h-5 w-5 mr-2" />
-            Đánh giá & Phản hồi ({totalElements})
-          </h3>
-          {totalElements > 0 && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              <span>{averageRating.toFixed(1)} / 5</span>
-            </div>
-          )}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <MessageCircle className="h-5 w-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Reviews & Feedback ({feedbacks.length})</h3>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+        {currentUser && (
+          <Button
+            onClick={() => setShowModal(true)}
+            size="sm"
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Review
+          </Button>
         )}
+      </div>
 
-        {/* Add new feedback - Sticky form */}
-        <Card className="border-blue-200 sticky top-16 bg-white z-10 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Viết đánh giá của bạn</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Rating stars */}
+      {/* Modal for Add/Edit Feedback */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-lg max-h-[50vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">
+              {editingFeedback ? "Edit Your Review" : "Write a Review"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Rating */}
             <div>
-              <p className="text-sm font-medium mb-2">Đánh giá sao:</p>
-              <div className="flex space-x-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => setRating(star)}
-                    onMouseEnter={() => setHoveredRating(star)}
-                    onMouseLeave={() => setHoveredRating(0)}
-                    className="transition-colors"
-                    disabled={submitting}
-                  >
-                    <Star
-                      className={`h-6 w-6 ${
-                        star <= (hoveredRating || rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                      }`}
-                    />
-                  </button>
-                ))}
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Rating</label>
+              {renderStars(newFeedback.rating, true, (rating) => setNewFeedback((prev) => ({ ...prev, rating })))}
             </div>
 
-            {/* Comment textarea */}
+            {/* Note */}
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Your Review</label>
               <Textarea
-                placeholder="Chia sẻ suy nghĩ của bạn về cuốn sách này..."
-                value={newFeedback}
-                onChange={(e) => setNewFeedback(e.target.value)}
-                rows={3}
-                className="resize-none"
-                disabled={submitting}
+                value={newFeedback.note}
+                onChange={(e) => setNewFeedback((prev) => ({ ...prev, note: e.target.value }))}
+                placeholder="Share your thoughts about this book..."
+                rows={4}
+                className="resize-none min-h-[100px]"
               />
             </div>
 
-            <Button
-              onClick={handleSubmitFeedback}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-              disabled={!newFeedback.trim() || rating === 0 || submitting}
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Đang gửi...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Gửi đánh giá
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Loading state */}
-        {loading && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin mr-2" />
-            <span>Đang tải đánh giá...</span>
-          </div>
-        )}
-
-        {/* Scrollable Feedback list */}
-        {!loading && (
-          <div className="space-y-4 pb-4">
-            {feedbacks.length === 0 ? (
-              <Card className="border-gray-200">
-                <CardContent className="p-8 text-center">
-                  <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">Chưa có đánh giá nào cho cuốn sách này.</p>
-                  <p className="text-sm text-gray-400 mt-1">Hãy là người đầu tiên đánh giá!</p>
-                </CardContent>
-              </Card>
-            ) : (
-              feedbacks.map((feedback, index) => (
-                <Card
-                  key={feedback.id || `feedback-${index}`}
-                  className="border-gray-200 hover:shadow-sm transition-shadow"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-3">
-                      <Avatar className="h-10 w-10 flex-shrink-0">
-                        <AvatarImage
-                          src={feedback.userInfo?.imageId ? `/api/images/${feedback.userInfo.imageId}` : undefined}
-                          alt={getUserDisplayName(feedback)}
-                        />
-                        <AvatarFallback>{getUserInitials(feedback)}</AvatarFallback>
-                      </Avatar>
-
-                      <div className="flex-1 space-y-2 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2 min-w-0">
-                            <span className="font-medium text-sm truncate">{getUserDisplayName(feedback)}</span>
-                            <div className="flex items-center space-x-1 flex-shrink-0">
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`h-3 w-3 ${
-                                    i < feedback.note ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                            {feedback.ownFeedback && (
-                              <Badge variant="secondary" className="text-xs flex-shrink-0">
-                                Của bạn
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                            {new Date(feedback.createdDate).toLocaleDateString("vi-VN")}
-                          </span>
-                        </div>
-
-                        <p className="text-sm text-gray-700 leading-relaxed break-words">{feedback.comment}</p>
-
-                        <div className="flex items-center space-x-4 pt-2">
-                          <button
-                            onClick={() => handleLikeFeedback(feedback.id || index)}
-                            className="flex items-center space-x-1 text-xs text-gray-500 hover:text-blue-600 transition-colors"
-                          >
-                            <ThumbsUp className="h-3 w-3" />
-                            <span>Thích</span>
-                          </button>
-                          <button
-                            onClick={() => handleReportFeedback(feedback.id || index)}
-                            className="flex items-center space-x-1 text-xs text-gray-500 hover:text-red-600 transition-colors"
-                          >
-                            <Flag className="h-3 w-3" />
-                            <span>Báo cáo</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Sticky Pagination at bottom */}
-        {!loading && totalPages > 1 && (
-          <div className="sticky bottom-0 bg-white border-t pt-4 mt-6">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">
-                Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)} trong
-                tổng số {totalElements} đánh giá
-              </p>
-
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 0}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Trước
-                </Button>
-
-                <div className="flex items-center space-x-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum
-                    if (totalPages <= 5) {
-                      pageNum = i
-                    } else if (currentPage < 3) {
-                      pageNum = i
-                    } else if (currentPage > totalPages - 4) {
-                      pageNum = totalPages - 5 + i
-                    } else {
-                      pageNum = currentPage - 2 + i
-                    }
-
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={currentPage === pageNum ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handlePageChange(pageNum)}
-                        className="w-8 h-8 p-0"
-                      >
-                        {pageNum + 1}
-                      </Button>
-                    )
-                  })}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages - 1}
-                >
-                  Sau
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+            {/* Actions */}
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+              <Button 
+                onClick={handleCancelEdit} 
+                variant="outline" 
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitFeedback}
+                disabled={isSubmitting || !newFeedback.note.trim()}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {isSubmitting ? "Submitting..." : editingFeedback ? "Update Review" : "Submit Review"}
+              </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Feedbacks List */}
+      <div className="max-h-[400px] overflow-y-auto pr-2 space-y-4 border rounded-lg bg-gray-50/50">
+        {feedbacks.length > 0 ? (
+          <>
+            {feedbacks.map((feedback, index) => {
+              const isOwnFeedback = currentUser && feedback.userInfo?.id === currentUser.id
+
+              return (
+                <div key={feedback.id}>
+                  <Card className="hover:shadow-md transition-shadow duration-200">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-4 flex-1">
+                          {/* Author Avatar */}
+                          <Avatar className="h-10 w-10 flex-shrink-0">
+                            <AvatarImage
+                              src={
+                                feedback.userInfo?.imageId ? `/api/images/${feedback.userInfo.imageId}` : undefined
+                              }
+                              alt={getUserDisplayName(feedback.userInfo)}
+                            />
+                            <AvatarFallback className="bg-blue-100 text-blue-600">
+                              {getUserInitials(feedback.userInfo)}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          {/* Feedback Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <h4 className="font-medium text-gray-900">{getUserDisplayName(feedback.userInfo)}</h4>
+                                <p className="text-sm text-gray-500">{formatDate(feedback.createdDate)}</p>
+                              </div>
+                              {renderStars(feedback.note)}
+                            </div>
+
+                            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{feedback.comment}</p>
+                          </div>
+                        </div>
+
+                        {/* Actions for own feedback */}
+                        {isOwnFeedback && (
+                          <div className="flex items-center space-x-2 ml-4">
+                            <Button
+                              onClick={() => handleEditFeedback(feedback)}
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              onClick={() => handleDeleteFeedback(feedback.id)}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {index < feedbacks.length - 1 && <Separator className="my-4" />}
+                </div>
+              )
+            })}
+          </>
+        ) : (
+          <Card className="text-center py-12 bg-gray-50">
+            <CardContent>
+              <div className="max-w-md mx-auto">
+                <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MessageCircle className="h-8 w-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Reviews Yet</h3>
+                <p className="text-gray-500 mb-6">Be the first to share your thoughts about this book!</p>
+                {currentUser && (
+                  <Button
+                    onClick={() => setShowModal(true)}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Write First Review
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

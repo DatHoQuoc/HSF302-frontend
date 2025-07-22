@@ -28,6 +28,18 @@ interface UserInfo{
   dateOfBirth: string,
   imageUrl: string
 }
+
+export interface UpdateProfileRequest {
+  firstName: string;
+  lastName: string;
+  dateOfBirth?: string;
+  file?: File; // Avatar file (optional)
+}
+
+interface UpdateProfileResponse {
+  message: string;
+  imageUrl?: string;
+}
 class AuthenticationService {
     async register(data: RegisterRequest): Promise<void> {
     try {
@@ -74,6 +86,31 @@ class AuthenticationService {
       return response.data;
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Đăng nhập không thành công. Vui lòng kiểm tra email và mật khẩu.";
+      throw new Error(errorMessage);
+    }
+  }
+  
+  async updateProfile(data: UpdateProfileRequest): Promise<UpdateProfileResponse> {
+    try {
+      const formData = new FormData();
+
+      // Thêm các trường thông tin nếu có
+      if (data.firstName) formData.append('firstName', data.firstName);
+      if (data.lastName) formData.append('lastName', data.lastName);
+      if (data.dateOfBirth) formData.append('dateOfBirth', data.dateOfBirth);
+
+      // Thêm file ảnh nếu có
+      if (data.file) formData.append('file', data.file);
+
+      const response = await api.patch<UpdateProfileResponse>('/user/profile', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Cập nhật thông tin không thành công. Vui lòng thử lại.";
       throw new Error(errorMessage);
     }
   }

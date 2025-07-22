@@ -2,31 +2,27 @@
 
 import type React from "react"
 import { useState } from "react"
-import {
-  Star,
-  Heart,
-  Share2,
-  Archive,
-  Edit,
-  Upload,
-  Eye,
-  Download,
-  MessageCircle,
-  RotateCcw,
-  CheckCircle,
-} from "lucide-react"
+import { Star, Share2, Archive, Edit, Trash2, BookOpen, Eye, Info, MoreVertical } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { toast } from "@/hooks/use-toast"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { BookDetailsModal } from "./BookDetailsModal"
+import { BookForm } from "./BookForm"
 import { bookService } from "@/service/BookService"
-import { FeedbackModal } from "@/components/FeedBackModal"
 import type { BookInfo, UserProfile } from "@/service/BookService"
+import { useToast } from "@/hooks/use-toast"
 
 interface BookCardProps {
   book: BookInfo
-  viewMode: "grid" | "list"
+  viewMode?: "grid" | "list"
   showActions?: boolean
   showOwnerActions?: boolean
   showReturnActions?: boolean
@@ -37,7 +33,7 @@ interface BookCardProps {
 
 export const BookCard: React.FC<BookCardProps> = ({
   book,
-  viewMode,
+  viewMode = "grid",
   showActions = false,
   showOwnerActions = false,
   showReturnActions = false,
@@ -45,100 +41,63 @@ export const BookCard: React.FC<BookCardProps> = ({
   onBookUpdate,
   currentUser,
 }) => {
-  const [isHovered, setIsHovered] = useState(false)
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [isActionLoading, setIsActionLoading] = useState(false)
 
-  const handleBorrow = async () => {
-    setIsLoading(true)
+  const isOwner = currentUser && book.ownerInfo?.id === currentUser.id
+  const isBorrower = currentUser && book.borrowerInfo?.id === currentUser.id
+  const canBorrow = book.shareable && !book.archived && !book.borrowerInfo && !isOwner
+
+  const handleBorrowBook = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     try {
+      setIsActionLoading(true)
       await bookService.borrowBook(book.id)
       toast({
-        title: "Yêu cầu mượn sách",
-        description: `Đã gửi yêu cầu mượn "${book.title}"`,
+        title: "Mượn sách thành công",
+        description: `Bạn đã mượn sách "${book.title}"`,
       })
       onBookUpdate?.()
     } catch (error) {
+      console.error("Error borrowing book:", error)
       toast({
-        title: "Yêu cầu mượn sách thất bại",
-        description: error.message || `Chưa gửi yêu cầu mượn "${book.title}"`,
+        title: "Lỗi mượn sách",
+        description: error.message || "Không thể mượn sách",
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsActionLoading(false)
     }
   }
 
-  const handleToggleShareable = async () => {
-    setIsLoading(true)
+  const handleReturnBook = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     try {
-      await bookService.toggleShareableStatus(book.id)
-      toast({
-        title: book.shareable ? "Đã ẩn sách" : "Đã chia sẻ sách",
-        description: `"${book.title}" ${book.shareable ? "không còn" : "đã được"} chia sẻ công khai`,
-      })
-      onBookUpdate?.()
-    } catch (error) {
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể cập nhật trạng thái chia sẻ",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleToggleArchived = async () => {
-    setIsLoading(true)
-    try {
-      await bookService.toggleArchivedStatus(book.id)
-      toast({
-        title: book.archived ? "Đã khôi phục sách" : "Đã lưu trữ sách",
-        description: `"${book.title}" ${book.archived ? "đã được khôi phục" : "đã được lưu trữ"}`,
-      })
-      onBookUpdate?.()
-    } catch (error) {
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể cập nhật trạng thái lưu trữ",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleUploadCover = () => {
-    toast({
-      title: "Upload ảnh bìa",
-      description: "Tính năng upload ảnh bìa sẽ được triển khai",
-    })
-  }
-
-  const handleReturnBook = async () => {
-    setIsLoading(true)
-    try {
+      setIsActionLoading(true)
       await bookService.returnBook(book.id)
       toast({
         title: "Trả sách thành công",
-        description: `Đã gửi yêu cầu trả "${book.title}". Chờ chủ sách xác nhận.`,
+        description: `Bạn đã trả sách "${book.title}"`,
       })
       onBookUpdate?.()
     } catch (error) {
+      console.error("Error returning book:", error)
       toast({
-        title: "Trả sách thất bại",
-        description: error.message || `Không thể trả sách "${book.title}"`,
+        title: "Lỗi trả sách",
+        description: error.message || "Không thể trả sách",
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsActionLoading(false)
     }
   }
 
-  const handleApproveReturn = async () => {
-    setIsLoading(true)
+  const handleApproveReturn = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     try {
+      setIsActionLoading(true)
       await bookService.approveReturn(book.id)
       toast({
         title: "Duyệt trả sách thành công",
@@ -146,436 +105,473 @@ export const BookCard: React.FC<BookCardProps> = ({
       })
       onBookUpdate?.()
     } catch (error) {
+      console.error("Error approving return:", error)
       toast({
-        title: "Duyệt trả sách thất bại",
-        description: error.message || `Không thể duyệt trả sách "${book.title}"`,
+        title: "Lỗi duyệt trả sách",
+        description: error.message || "Không thể duyệt trả sách",
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsActionLoading(false)
     }
   }
 
-  const handleViewFeedback = () => {
-    setShowFeedbackModal(true)
+  const handleToggleShareable = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      setIsActionLoading(true)
+      await bookService.toggleShareableStatus(book.id)
+      toast({
+        title: "Cập nhật thành công",
+        description: `Đã ${book.shareable ? "tắt" : "bật"} chia sẻ sách`,
+      })
+      onBookUpdate?.()
+    } catch (error) {
+      console.error("Error toggling shareable:", error)
+      toast({
+        title: "Lỗi cập nhật",
+        description: error.message || "Không thể cập nhật trạng thái chia sẻ",
+        variant: "destructive",
+      })
+    } finally {
+      setIsActionLoading(false)
+    }
   }
 
-  const handleCloseFeedbackModal = () => {
-    setShowFeedbackModal(false)
+  const handleToggleArchived = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      setIsActionLoading(true)
+      await bookService.toggleArchivedStatus(book.id)
+      toast({
+        title: "Cập nhật thành công",
+        description: `Đã ${book.archived ? "bỏ lưu trữ" : "lưu trữ"} sách`,
+      })
+      onBookUpdate?.()
+    } catch (error) {
+      console.error("Error toggling archived:", error)
+      toast({
+        title: "Lỗi cập nhật",
+        description: error.message || "Không thể cập nhật trạng thái lưu trữ",
+        variant: "destructive",
+      })
+    } finally {
+      setIsActionLoading(false)
+    }
   }
 
-  // Check if current user is the owner
-  const isCurrentUserOwner =
-    currentUser &&
-    (parseInt(book.ownerInfo?.id )== Number.parseInt(currentUser.id) ||
-      book.owner === "current_user" ||
-      book.owner === currentUser.email)
+  const handleDeleteBook = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!confirm(`Bạn có chắc chắn muốn xóa sách "${book.title}"?`)) {
+      return
+    }
 
-  // Get owner display name
-  const getOwnerDisplayName = () => {
-    if (book.ownerInfo) {
-      return `${book.ownerInfo.firstName} ${book.ownerInfo.lastName}`
+    try {
+      setIsActionLoading(true)
+      await bookService.deleteBook(book.id)
+      toast({
+        title: "Xóa sách thành công",
+        description: `Đã xóa sách "${book.title}"`,
+      })
+      onBookUpdate?.()
+    } catch (error) {
+      console.error("Error deleting book:", error)
+      toast({
+        title: "Lỗi xóa sách",
+        description: error.message || "Không thể xóa sách",
+        variant: "destructive",
+      })
+    } finally {
+      setIsActionLoading(false)
     }
-    if (isCurrentUserOwner) {
-      return "Bạn"
-    }
-    return book.owner || "Người dùng khác"
   }
 
-  // Get borrower display name
-  const getBorrowerDisplayName = () => {
-    if (book.borrowerInfo) {
-      return `${book.borrowerInfo.firstName} ${book.borrowerInfo.lastName}`
-    }
-    return "Người mượn"
+  const getUserInitials = (user: UserProfile | undefined) => {
+    if (!user) return "U"
+    return `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase()
   }
 
-  // Get user initials for avatar
-  const getUserInitials = (userInfo) => {
-    if (userInfo?.firstName && userInfo?.lastName) {
-      return `${userInfo.firstName[0]}${userInfo.lastName[0]}`.toUpperCase()
-    }
-    if (isCurrentUserOwner && currentUser) {
-      return `${currentUser.firstName?.[0] || ""}${currentUser.lastName?.[0] || ""}`.toUpperCase()
-    }
-    return "ND"
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("vi-VN")
   }
 
   if (viewMode === "list") {
     return (
       <>
-        <Card
-          className="transition-all duration-300 hover:shadow-lg border-blue-100 hover:border-blue-300 overflow-hidden"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <CardContent className="p-6 max-h-none overflow-visible">
-            <div className="flex gap-6">
-              <div className="relative flex-shrink-0">
+        <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer group">
+          <div className="flex p-4 space-x-4">
+            {/* Book Cover */}
+            <div className="flex-shrink-0">
+              <div className="w-20 h-28 bg-gray-100 rounded-lg overflow-hidden">
                 <img
-                  src={book.cover || "/placeholder.svg"}
+                  src={book.cover || "/placeholder.svg?height=112&width=80&text=No+Cover"}
                   alt={book.title}
-                  className="w-24 h-32 object-cover rounded-lg shadow-md"
+                  className="w-full h-full object-cover"
                 />
-                {book.rate && (
-                  <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                    <Star className="h-3 w-3 fill-current" />
-                    {book.rate}
-                  </div>
-                )}
               </div>
+            </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">{book.title}</h3>
-                    <p className="text-sm text-gray-600 mb-2">bởi {book.author}</p>
-                  </div>
-                  <div className="flex gap-1">
-                    {book.shareable && (
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        Có thể mượn
-                      </Badge>
-                    )}
-                    {book.archived && (
-                      <Badge variant="secondary" className="bg-gray-100 text-gray-800">
-                        Đã lưu trữ
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+            {/* Book Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-gray-900 truncate">{book.title}</h3>
+                  <p className="text-sm text-gray-600 mb-2">Tác giả: {book.author}</p>
 
-                <p className="text-sm text-gray-600 mb-4 line-clamp-3 overflow-hidden">{book.synopsis}</p>
+                  {book.synopsis && <p className="text-sm text-gray-700 line-clamp-2 mb-2">{book.synopsis}</p>}
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span>ISBN: {book.isbn}</span>
-                  </div>
-
-                  <div className="flex gap-2">
-                    {showActions && !isCurrentUserOwner && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={handleBorrow}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                          disabled={isLoading}
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          Mượn
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Heart className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-
-                    {showReturnActions && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={handleReturnBook}
-                          className="bg-orange-600 hover:bg-orange-700 text-white"
-                          disabled={isLoading}
-                        >
-                          <RotateCcw className="h-4 w-4 mr-1" />
-                          Trả sách
-                        </Button>
-                      </>
-                    )}
-
-                    {showApprovalActions && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={handleApproveReturn}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          disabled={isLoading}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Duyệt trả
-                        </Button>
-                      </>
-                    )}
-
-                    {showOwnerActions && (
-                      <>
-                        <Button variant="outline" size="sm" disabled={isLoading}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleToggleShareable}
-                          className={book.shareable ? "text-green-600" : "text-gray-600"}
-                          disabled={isLoading}
-                        >
-                          <Share2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={handleUploadCover} disabled={isLoading}>
-                          <Upload className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleToggleArchived}
-                          className={book.archived ? "text-orange-600" : "text-gray-600"}
-                          disabled={isLoading}
-                        >
-                          <Archive className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleViewFeedback}
-                      title="Xem đánh giá"
-                      disabled={isLoading}
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                    </Button>
-
-                    <Button variant="outline" size="sm" disabled={isLoading}>
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Owner/Borrower Info */}
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                  <div className="flex items-center gap-2">
+                  {/* Owner Info */}
+                  <div className="flex items-center space-x-2 mb-2">
                     <Avatar className="h-6 w-6">
                       <AvatarImage
                         src={book.ownerInfo?.imageId ? `/api/images/${book.ownerInfo.imageId}` : undefined}
-                        alt={getOwnerDisplayName()}
+                        alt={book.ownerInfo?.fullName}
                       />
                       <AvatarFallback className="text-xs bg-blue-100 text-blue-600">
                         {getUserInitials(book.ownerInfo)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-xs text-gray-500">
-                      Chủ sách: <span className="font-medium">{getOwnerDisplayName()}</span>
+                    <span className="text-sm text-gray-600">
+                      {book.ownerInfo?.fullName || `${book.ownerInfo?.firstName} ${book.ownerInfo?.lastName}`}
                     </span>
                   </div>
 
-                  {book.borrowerInfo && (
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage
-                          src={book.borrowerInfo?.imageId ? `/api/images/${book.borrowerInfo.imageId}` : undefined}
-                          alt={getBorrowerDisplayName()}
-                        />
-                        <AvatarFallback className="text-xs bg-orange-100 text-orange-600">
-                          {getUserInitials(book.borrowerInfo)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs text-gray-500">
-                        Người mượn: <span className="font-medium">{getBorrowerDisplayName()}</span>
-                      </span>
+                  {/* Status Badges */}
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    <Badge variant={book.shareable ? "default" : "secondary"} className="text-xs">
+                      {book.shareable ? "Có thể chia sẻ" : "Riêng tư"}
+                    </Badge>
+                    {book.archived && (
+                      <Badge variant="destructive" className="text-xs">
+                        Đã lưu trữ
+                      </Badge>
+                    )}
+                    {book.borrowerInfo && (
+                      <Badge variant="secondary" className="text-xs">
+                        Đang được mượn
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Rating */}
+                  {book.rate && (
+                    <div className="flex items-center space-x-1">
+                      <div className="flex items-center">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`h-3 w-3 ${
+                              star <= book.rate! ? "text-yellow-400 fill-current" : "text-gray-300"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs text-gray-600">({book.rate}/5)</span>
                     </div>
                   )}
+                </div>
 
-                  <span className="text-xs text-gray-400">#{book.id}</span>
+                {/* Actions */}
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowDetailsModal(true)
+                    }}
+                  >
+                    <Info className="h-4 w-4 mr-1" />
+                    Chi tiết
+                  </Button>
+
+                  {/* Action Buttons */}
+                  {showActions && canBorrow && (
+                    <Button
+                      onClick={handleBorrowBook}
+                      disabled={isActionLoading}
+                      size="sm"
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      <BookOpen className="h-4 w-4 mr-1" />
+                      Mượn
+                    </Button>
+                  )}
+
+                  {showReturnActions && isBorrower && (
+                    <Button onClick={handleReturnBook} disabled={isActionLoading} variant="outline" size="sm">
+                      <BookOpen className="h-4 w-4 mr-1" />
+                      Trả sách
+                    </Button>
+                  )}
+
+                  {showApprovalActions && isOwner && book.borrowerInfo && (
+                    <Button
+                      onClick={handleApproveReturn}
+                      disabled={isActionLoading}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <BookOpen className="h-4 w-4 mr-1" />
+                      Duyệt
+                    </Button>
+                  )}
+
+                  {showOwnerActions && isOwner && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowEditForm(true)
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Chỉnh sửa
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleToggleShareable}>
+                          <Share2 className="h-4 w-4 mr-2" />
+                          {book.shareable ? "Tắt chia sẻ" : "Bật chia sẻ"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleToggleArchived}>
+                          <Archive className="h-4 w-4 mr-2" />
+                          {book.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleDeleteBook} className="text-red-600 focus:text-red-600">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Xóa sách
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </div>
             </div>
-          </CardContent>
+          </div>
         </Card>
 
-        <FeedbackModal
-          isOpen={showFeedbackModal}
-          onClose={handleCloseFeedbackModal}
+        {/* Modals */}
+        <BookDetailsModal
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
           bookId={book.id}
-          bookTitle={book.title}
+          onBookUpdate={onBookUpdate}
+          currentUser={currentUser}
         />
+
+        {showEditForm && (
+          <BookForm
+            book={book}
+            onClose={() => setShowEditForm(false)}
+            onSuccess={() => {
+              setShowEditForm(false)
+              onBookUpdate?.()
+            }}
+          />
+        )}
       </>
     )
   }
 
+  // Grid view
   return (
     <>
-      <Card
-        className="group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-blue-100 hover:border-blue-300 h-full flex flex-col"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+      <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer group overflow-hidden">
         <div className="relative">
-          <img
-            src={book.cover || "/placeholder.svg"}
-            alt={book.title}
-            className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
-          />
+          {/* Book Cover */}
+          <div className="aspect-[3/4] bg-gray-100 overflow-hidden">
+            <img
+              src={book.cover || "/placeholder.svg?height=400&width=300&text=No+Cover"}
+              alt={book.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+            />
+          </div>
 
-          {/* Overlay */}
-          <div
-            className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${isHovered ? "opacity-100" : "opacity-0"}`}
-          >
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex gap-2">
-                {showActions && !isCurrentUserOwner && (
-                  <>
-                    <Button
-                      size="sm"
-                      onClick={handleBorrow}
-                      className="bg-white text-gray-900 hover:bg-gray-100"
-                      disabled={isLoading}
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Mượn
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                    >
-                      <Heart className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
+          {/* Overlay Actions */}
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <div className="flex space-x-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowDetailsModal(true)
+                }}
+                className="bg-white hover:bg-gray-100"
+              >
+                <Eye className="h-4 w-4 mr-1" />
+                Chi tiết
+              </Button>
 
-                {showReturnActions && (
-                  <Button
-                    size="sm"
-                    onClick={handleReturnBook}
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                    disabled={isLoading}
-                  >
-                    <RotateCcw className="h-4 w-4 mr-1" />
-                    Trả sách
-                  </Button>
-                )}
-
-                {showApprovalActions && (
-                  <Button
-                    size="sm"
-                    onClick={handleApproveReturn}
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                    disabled={isLoading}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Duyệt trả
-                  </Button>
-                )}
-
-                {showOwnerActions && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                      disabled={isLoading}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleToggleShareable}
-                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                      disabled={isLoading}
-                    >
-                      <Share2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleUploadCover}
-                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                      disabled={isLoading}
-                    >
-                      <Upload className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-
+              {showActions && canBorrow && (
                 <Button
-                  variant="outline"
+                  onClick={handleBorrowBook}
+                  disabled={isActionLoading}
                   size="sm"
-                  className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                  onClick={handleViewFeedback}
-                  title="Xem đánh giá"
-                  disabled={isLoading}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                 >
-                  <MessageCircle className="h-4 w-4" />
+                  <BookOpen className="h-4 w-4 mr-1" />
+                  Mượn
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                  disabled={isLoading}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </div>
+              )}
             </div>
           </div>
 
-          {/* Rating Badge */}
-          {book.rate && (
-            <div className="absolute top-3 right-3 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-              <Star className="h-3 w-3 fill-current" />
-              {book.rate}
-            </div>
-          )}
-
           {/* Status Badges */}
-          <div className="absolute top-3 left-3 flex flex-col gap-1">
-            {book.shareable && <Badge className="bg-green-500 text-white text-xs">Có thể mượn</Badge>}
-            {book.archived && <Badge className="bg-gray-500 text-white text-xs">Đã lưu trữ</Badge>}
+          <div className="absolute top-2 left-2 flex flex-col gap-1">
+            {!book.shareable && (
+              <Badge variant="secondary" className="text-xs">
+                Riêng tư
+              </Badge>
+            )}
+            {book.archived && (
+              <Badge variant="destructive" className="text-xs">
+                Lưu trữ
+              </Badge>
+            )}
+            {book.borrowerInfo && (
+              <Badge variant="secondary" className="text-xs">
+                Đã mượn
+              </Badge>
+            )}
           </div>
         </div>
 
-        <CardContent className="p-4 flex-1 flex flex-col">
-          <h3 className="font-semibold text-lg mb-1 truncate text-gray-900">{book.title}</h3>
-          <p className="text-sm text-gray-600 mb-2">bởi {book.author}</p>
-          <p className="text-xs text-gray-500 line-clamp-3 mb-3 flex-1 overflow-hidden">{book.synopsis}</p>
+        <CardContent className="p-4">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-gray-900 line-clamp-2 min-h-[2.5rem]">{book.title}</h3>
+            <p className="text-sm text-gray-600">Tác giả: {book.author}</p>
 
-          <div className="flex items-center justify-between mt-auto">
-            <div className="flex items-center gap-2">
+            {/* Owner Info */}
+            <div className="flex items-center space-x-2">
               <Avatar className="h-6 w-6">
                 <AvatarImage
                   src={book.ownerInfo?.imageId ? `/api/images/${book.ownerInfo.imageId}` : undefined}
-                  alt={getOwnerDisplayName()}
+                  alt={book.ownerInfo?.fullName}
                 />
                 <AvatarFallback className="text-xs bg-blue-100 text-blue-600">
                   {getUserInitials(book.ownerInfo)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-gray-500">{getOwnerDisplayName()}</span>
-            </div>
-
-            <span className="text-xs text-gray-400">#{book.id}</span>
-          </div>
-
-          {/* Borrower info if available */}
-          {book.borrowerInfo && (
-            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
-              <Avatar className="h-5 w-5">
-                <AvatarImage
-                  src={book.borrowerInfo?.imageId ? `/api/images/${book.borrowerInfo.imageId}` : undefined}
-                  alt={getBorrowerDisplayName()}
-                />
-                <AvatarFallback className="text-xs bg-orange-100 text-orange-600">
-                  {getUserInitials(book.borrowerInfo)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-xs text-gray-500">
-                Người mượn: <span className="font-medium">{getBorrowerDisplayName()}</span>
+              <span className="text-sm text-gray-600 truncate">
+                {book.ownerInfo?.fullName || `${book.ownerInfo?.firstName} ${book.ownerInfo?.lastName}`}
               </span>
             </div>
-          )}
+
+            {/* Rating */}
+            {book.rate && (
+              <div className="flex items-center space-x-1">
+                <div className="flex items-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`h-3 w-3 ${star <= book.rate! ? "text-yellow-400 fill-current" : "text-gray-300"}`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-gray-600">({book.rate}/5)</span>
+              </div>
+            )}
+
+            {/* Synopsis */}
+            {book.synopsis && <p className="text-sm text-gray-700 line-clamp-2">{book.synopsis}</p>}
+
+            {/* Action Buttons */}
+            <div className="pt-2 space-y-2">
+              {showReturnActions && isBorrower && (
+                <Button
+                  onClick={handleReturnBook}
+                  disabled={isActionLoading}
+                  variant="outline"
+                  size="sm"
+                  className="w-full bg-transparent"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Trả sách
+                </Button>
+              )}
+
+              {showApprovalActions && isOwner && book.borrowerInfo && (
+                <Button
+                  onClick={handleApproveReturn}
+                  disabled={isActionLoading}
+                  size="sm"
+                  className="w-full bg-green-600 hover:bg-green-700"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Duyệt trả sách
+                </Button>
+              )}
+
+              {showOwnerActions && isOwner && (
+                <div className="flex space-x-1">
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowEditForm(true)
+                    }}
+                    disabled={isActionLoading}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Sửa
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleToggleShareable}>
+                        <Share2 className="h-4 w-4 mr-2" />
+                        {book.shareable ? "Tắt chia sẻ" : "Bật chia sẻ"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleToggleArchived}>
+                        <Archive className="h-4 w-4 mr-2" />
+                        {book.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleDeleteBook} className="text-red-600 focus:text-red-600">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Xóa sách
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <FeedbackModal
-        isOpen={showFeedbackModal}
-        onClose={handleCloseFeedbackModal}
+      {/* Modals */}
+      <BookDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
         bookId={book.id}
-        bookTitle={book.title}
+        onBookUpdate={onBookUpdate}
+        currentUser={currentUser}
       />
+
+      {showEditForm && (
+        <BookForm
+          book={book}
+          onClose={() => setShowEditForm(false)}
+          onSuccess={() => {
+            setShowEditForm(false)
+            onBookUpdate?.()
+          }}
+        />
+      )}
     </>
   )
 }

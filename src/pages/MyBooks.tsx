@@ -10,14 +10,15 @@ import { BookDetailsModal } from '@/components/BookDetailsModal';
 import { useNavigate } from 'react-router-dom';
 import { bookService, BookInfo, GetAllBooksRequest } from '@/service/BookService';
 import { useToast } from '@/hooks/use-toast';
+import { type UserProfile } from '@/service/BookService';
 interface MyBooksProps {
   page?: number;
   size?: number;
 }
 
-const MyBooks: React.FC<MyBooksProps> = ({ page = 0, size = 3 }) => {
+const MyBooks: React.FC<MyBooksProps> = ({ page = 0, size = 5 }) => {
   const navigate = useNavigate();
-  const { toast } = useToast(); 
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedBook, setSelectedBook] = useState<BookInfo | null>(null);
@@ -56,7 +57,7 @@ const MyBooks: React.FC<MyBooksProps> = ({ page = 0, size = 3 }) => {
     };
 
     fetchBooks();
-  }, [currentPage, size, refreshTrigger, toast]); 
+  }, [currentPage, size, refreshTrigger, toast]);
 
   const activeBooks = books.filter(book => !book.archived);
   const archivedBooks = books.filter(book => book.archived);
@@ -465,17 +466,19 @@ const MyBooks: React.FC<MyBooksProps> = ({ page = 0, size = 3 }) => {
             setShowAddForm(false);
             setSelectedBook(null);
           }}
-         // onSuccess={handleFormSuccess}
+        // onSuccess={handleFormSuccess}
         />
       )}
 
       {showBookDetails && selectedBook && (
         <BookDetailsModal
-          book={selectedBook}
+          isOpen={showBookDetails}
+          bookId={selectedBook.id}
           onClose={() => {
             setShowBookDetails(false);
             setSelectedBook(null);
           }}
+          onBookUpdate={() => setRefreshTrigger(prev => prev + 1)}
         />
       )}
     </div>
