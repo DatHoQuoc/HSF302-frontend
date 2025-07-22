@@ -20,6 +20,14 @@ interface ActivateAccountResponse {
   message: string;
 }
 
+interface UserInfo{
+  id: string,
+  firstName: string,
+  lastName: string,
+  email: string,
+  dateOfBirth: string,
+  imageUrl: string
+}
 class AuthenticationService {
     async register(data: RegisterRequest): Promise<void> {
     try {
@@ -50,6 +58,18 @@ class AuthenticationService {
       const response = await api.post<AuthenticateResponse>('/auth/authenticate', data);
       if (response.data.token) {
         localStorage.setItem('authToken', response.data.token);
+      }
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Đăng nhập không thành công. Vui lòng kiểm tra email và mật khẩu.";
+      throw new Error(errorMessage);
+    }
+  }
+   async getProfile(): Promise<UserInfo> {
+    try {
+      const response = await api.get('/user/profile');
+      if (response.data) {
+        localStorage.setItem('user', JSON.stringify(response.data));
       }
       return response.data;
     } catch (error) {

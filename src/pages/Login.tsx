@@ -44,6 +44,7 @@ const Login = () => {
         title: "Đăng nhập thành công!",
         description: "Chào mừng bạn trở lại.",
       });
+      const data = authenticationService.getProfile();
 
       navigate('/home'); 
     } catch (error) {

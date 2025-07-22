@@ -11,12 +11,14 @@ import { StatsCard } from '@/components/StatsCard';
 import { Link } from 'react-router-dom';
 import { bookService } from '@/service/BookService'; // Adjust this import path as necessary
 import { GetAllBooksRequest, GetAllBooksResponse, BookInfo } from '@/service/BookService'; // Adjust this import path as necessary for your types
-
+import NotificationBell from '../components/NotificationBell';
+import { useNotifications } from '../NotificationContext';
 const Index = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showAddForm, setShowAddForm] = useState(false);
     const [activeTab, setActiveTab] = useState<string>('all-books'); // State for active tab
+    const { notifications, unreadCount, isConnected } = useNotifications();
 
     // State for fetched books
     const [allBooks, setAllBooks] = useState<BookInfo[]>([]);
@@ -88,8 +90,8 @@ const Index = () => {
         setIsLoadingMyBooks(true);
         setErrorMyBooks(null);
         try {
-         
-            const response = await bookService.getAllBooksByOwner(params); 
+
+            const response = await bookService.getAllBooksByOwner(params);
             setMyBooks(response.content);
         } catch (error) {
             setErrorMyBooks(error.message);
@@ -220,10 +222,30 @@ const Index = () => {
                         </div>
                     </div>
                 </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <span className="text-sm text-gray-500">
+                            {isConnected ? 'Online' : 'Offline'}
+                        </span>
+                    </div>
+                    <NotificationBell />
+                </div>
             </header>
 
             <div className="container mx-auto px-6 py-8">
                 {/* Stats Section - Keep mock for now or fetch from another API */}
+                <p className="text-gray-500 mb-4">
+                    You have {unreadCount} unread notifications
+                </p>
+
+                {/* Debug info */}
+                <div className="mt-8 p-4 bg-gray-100 rounded-lg">
+                    <h3 className="font-semibold mb-2">Debug Info:</h3>
+                    <p>WebSocket Connected: {isConnected ? 'Yes' : 'No'}</p>
+                    <p>Total Notifications: {notifications.length}</p>
+                    <p>Unread Count: {unreadCount}</p>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <StatsCard
                         title="Tổng số sách"
