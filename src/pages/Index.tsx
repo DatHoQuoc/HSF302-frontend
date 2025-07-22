@@ -271,9 +271,9 @@ const Index = () => {
             const statsData = await bookService.getDashboardStats();
             const transformedStats = {
                 totalBooks: statsData.totalBooks?.value || 0, // Use optional chaining and default to 0
-                totalBorrowed: statsData.totalBorrowed?.value || 0,
-                totalShared: statsData.totalShared?.value || 0,
-                totalReturned: statsData.totalReturned?.value || 0,
+                totalBorrowed: statsData.borrowedBooks?.value || 0,
+                totalShared: statsData.sharedBooks?.value || 0,
+                totalReturned: statsData.returnedBooks?.value || 0,
             };
             setStats(transformedStats);
         } catch (error) {

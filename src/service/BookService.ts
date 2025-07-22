@@ -97,9 +97,9 @@ interface ValueObject {
 
 export interface DashboardStats {
   totalBooks: ValueObject;
-  totalBorrowed: ValueObject;
-  totalReturned: ValueObject;
-  totalShared: ValueObject;
+  borrowedBooks: ValueObject;
+  sharedBooks: ValueObject;
+  returnedBooks: ValueObject;
 }
 
 class BookService {
