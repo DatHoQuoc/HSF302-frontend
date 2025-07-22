@@ -1,119 +1,139 @@
-import React, { useState, useEffect } from 'react';
-import { Star, Send, MessageCircle, ThumbsUp, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { bookService, type FeedbackInfo, type FeedbackRequest } from '@/service/BookService';
+"use client"
+
+import { useState, useEffect } from "react"
+import {
+  Star,
+  Send,
+  MessageCircle,
+  ThumbsUp,
+  Flag,
+  Loader2,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { bookService, type FeedbackInfo, type FeedbackRequest } from "@/service/BookService"
 
 interface FeedbackSectionProps {
-  bookId: number;
+  bookId: number
 }
 
 export const FeedbackSection = ({ bookId }: FeedbackSectionProps) => {
-  const [newFeedback, setNewFeedback] = useState('');
-  const [rating, setRating] = useState(0);
-  const [hoveredRating, setHoveredRating] = useState(0);
-  const [feedbacks, setFeedbacks] = useState<FeedbackInfo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
-  const pageSize = 10;
+  const [newFeedback, setNewFeedback] = useState("")
+  const [rating, setRating] = useState(0)
+  const [hoveredRating, setHoveredRating] = useState(0)
+  const [feedbacks, setFeedbacks] = useState<FeedbackInfo[]>([])
+  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
+  const pageSize = 10
 
   // Load feedbacks when component mounts or page changes
   useEffect(() => {
-    loadFeedbacks();
-  }, [bookId, currentPage]);
+    loadFeedbacks()
+  }, [bookId, currentPage])
 
   const loadFeedbacks = async () => {
-    setLoading(true);
-    setError(null);
-    
+    setLoading(true)
+    setError(null)
+
     try {
       const response = await bookService.getFeedbacksByBook(bookId, {
         page: currentPage,
-        size: pageSize
-      });
-      
-      setFeedbacks(response.content);
-      setTotalPages(response.totalPages);
-      setTotalElements(response.totalElements);
+        size: pageSize,
+      })
+
+      setFeedbacks(response.content)
+      setTotalPages(response.totalPages)
+      setTotalElements(response.totalElements)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi khi tải đánh giá');
-      console.error('Error loading feedbacks:', err);
+      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải đánh giá")
+      console.error("Error loading feedbacks:", err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleSubmitFeedback = async () => {
     if (!newFeedback.trim() || rating === 0) {
-      setError('Vui lòng nhập đánh giá và chọn số sao!');
-      return;
+      setError("Vui lòng nhập đánh giá và chọn số sao!")
+      return
     }
-    
-    setSubmitting(true);
-    setError(null);
-    
+
+    setSubmitting(true)
+    setError(null)
+
     try {
       const feedbackData: FeedbackRequest = {
         note: rating,
         comment: newFeedback.trim(),
-        bookId: bookId
-      };
-      
-      await bookService.createFeedback(feedbackData);
-      
+        bookId: bookId,
+      }
+
+      await bookService.createFeedback(feedbackData)
+
       // Reset form
-      setNewFeedback('');
-      setRating(0);
-      
+      setNewFeedback("")
+      setRating(0)
+
       // Reload feedbacks to show the new one
-      setCurrentPage(0); // Go back to first page to see new feedback
-      await loadFeedbacks();
-      
+      setCurrentPage(0) // Go back to first page to see new feedback
+      await loadFeedbacks()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi khi gửi đánh giá');
-      console.error('Error submitting feedback:', err);
+      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi khi gửi đánh giá")
+      console.error("Error submitting feedback:", err)
     } finally {
-      setSubmitting(false);
+      setSubmitting(false)
     }
-  };
+  }
 
   const handleLikeFeedback = (feedbackId: number) => {
     // TODO: Implement like feedback API when available
-    console.log('Like feedback:', feedbackId);
-  };
+    console.log("Like feedback:", feedbackId)
+  }
 
   const handleReportFeedback = (feedbackId: number) => {
     // TODO: Implement report feedback API when available
-    console.log('Report feedback:', feedbackId);
-  };
+    console.log("Report feedback:", feedbackId)
+  }
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 0 && newPage < totalPages) {
-      setCurrentPage(newPage);
+      setCurrentPage(newPage)
     }
-  };
+  }
 
   // Calculate average rating
-  const averageRating = feedbacks.length > 0 
-    ? feedbacks.reduce((sum, feedback) => sum + feedback.note, 0) / feedbacks.length 
-    : 0;
+  const averageRating =
+    feedbacks.length > 0 ? feedbacks.reduce((sum, feedback) => sum + feedback.note, 0) / feedbacks.length : 0
 
-  // Helper function to get fallback text for avatar
-  const getAvatarFallback = (feedback: FeedbackInfo, index: number) => {
-    if (feedback.id) {
-      return feedback.id.toString().slice(-2);
+  // Helper function to get user display name
+  const getUserDisplayName = (feedback: FeedbackInfo) => {
+    if (feedback.userInfo) {
+      return `${feedback.userInfo.firstName} ${feedback.userInfo.lastName}`
     }
-    // Fallback to using array index + 1 if id is missing
-    return (index + 1).toString().padStart(2, '0');
-  };
+    return `Người dùng #${feedback.id || "Unknown"}`
+  }
+
+  // Helper function to get user initials
+  const getUserInitials = (feedback: FeedbackInfo) => {
+    if (feedback.userInfo?.firstName && feedback.userInfo?.lastName) {
+      return `${feedback.userInfo.firstName[0]}${feedback.userInfo.lastName[0]}`.toUpperCase()
+    }
+    if (feedback.id) {
+      return feedback.id.toString().slice(-2)
+    }
+    return "ND"
+  }
 
   return (
     <div className="max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
@@ -160,9 +180,7 @@ export const FeedbackSection = ({ bookId }: FeedbackSectionProps) => {
                   >
                     <Star
                       className={`h-6 w-6 ${
-                        star <= (hoveredRating || rating)
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-gray-300'
+                        star <= (hoveredRating || rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
                       }`}
                     />
                   </button>
@@ -223,29 +241,30 @@ export const FeedbackSection = ({ bookId }: FeedbackSectionProps) => {
               </Card>
             ) : (
               feedbacks.map((feedback, index) => (
-                <Card key={feedback.id || `feedback-${index}`} className="border-gray-200 hover:shadow-sm transition-shadow">
+                <Card
+                  key={feedback.id || `feedback-${index}`}
+                  className="border-gray-200 hover:shadow-sm transition-shadow"
+                >
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-3">
                       <Avatar className="h-10 w-10 flex-shrink-0">
-                        <AvatarFallback>
-                          {getAvatarFallback(feedback, index)}
-                        </AvatarFallback>
+                        <AvatarImage
+                          src={feedback.userInfo?.imageId ? `/api/images/${feedback.userInfo.imageId}` : undefined}
+                          alt={getUserDisplayName(feedback)}
+                        />
+                        <AvatarFallback>{getUserInitials(feedback)}</AvatarFallback>
                       </Avatar>
-                      
+
                       <div className="flex-1 space-y-2 min-w-0">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2 min-w-0">
-                            <span className="font-medium text-sm truncate">
-                              Người dùng #{feedback.id || (index + 1)}
-                            </span>
+                            <span className="font-medium text-sm truncate">{getUserDisplayName(feedback)}</span>
                             <div className="flex items-center space-x-1 flex-shrink-0">
                               {[...Array(5)].map((_, i) => (
                                 <Star
                                   key={i}
                                   className={`h-3 w-3 ${
-                                    i < feedback.note
-                                      ? 'fill-yellow-400 text-yellow-400'
-                                      : 'text-gray-300'
+                                    i < feedback.note ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
                                   }`}
                                 />
                               ))}
@@ -257,14 +276,12 @@ export const FeedbackSection = ({ bookId }: FeedbackSectionProps) => {
                             )}
                           </div>
                           <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                            {new Date(feedback.createdDate).toLocaleDateString('vi-VN')}
+                            {new Date(feedback.createdDate).toLocaleDateString("vi-VN")}
                           </span>
                         </div>
-                        
-                        <p className="text-sm text-gray-700 leading-relaxed break-words">
-                          {feedback.comment}
-                        </p>
-                        
+
+                        <p className="text-sm text-gray-700 leading-relaxed break-words">{feedback.comment}</p>
+
                         <div className="flex items-center space-x-4 pt-2">
                           <button
                             onClick={() => handleLikeFeedback(feedback.id || index)}
@@ -295,9 +312,10 @@ export const FeedbackSection = ({ bookId }: FeedbackSectionProps) => {
           <div className="sticky bottom-0 bg-white border-t pt-4 mt-6">
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-700">
-                Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)} trong tổng số {totalElements} đánh giá
+                Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)} trong
+                tổng số {totalElements} đánh giá
               </p>
-              
+
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
@@ -308,20 +326,20 @@ export const FeedbackSection = ({ bookId }: FeedbackSectionProps) => {
                   <ChevronLeft className="h-4 w-4" />
                   Trước
                 </Button>
-                
+
                 <div className="flex items-center space-x-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
+                    let pageNum
                     if (totalPages <= 5) {
-                      pageNum = i;
+                      pageNum = i
                     } else if (currentPage < 3) {
-                      pageNum = i;
+                      pageNum = i
                     } else if (currentPage > totalPages - 4) {
-                      pageNum = totalPages - 5 + i;
+                      pageNum = totalPages - 5 + i
                     } else {
-                      pageNum = currentPage - 2 + i;
+                      pageNum = currentPage - 2 + i
                     }
-                    
+
                     return (
                       <Button
                         key={pageNum}
@@ -332,10 +350,10 @@ export const FeedbackSection = ({ bookId }: FeedbackSectionProps) => {
                       >
                         {pageNum + 1}
                       </Button>
-                    );
+                    )
                   })}
                 </div>
-                
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -351,5 +369,5 @@ export const FeedbackSection = ({ bookId }: FeedbackSectionProps) => {
         )}
       </div>
     </div>
-  );
-};
+  )
+}

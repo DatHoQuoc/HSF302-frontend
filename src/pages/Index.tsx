@@ -1,160 +1,385 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Users, Heart, ArrowRight, Plus, Search, Filter, Grid, List, User, LogOut, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge'; // Make sure this is used if you intend to
-import { BookCard } from '@/components/BookCard';
-import { BookForm } from '@/components/BookForm';
-import { StatsCard } from '@/components/StatsCard';
-import { Link } from 'react-router-dom';
-import { bookService } from '@/service/BookService'; // Adjust this import path as necessary
-import { GetAllBooksRequest, GetAllBooksResponse, BookInfo } from '@/service/BookService'; // Adjust this import path as necessary for your types
-import NotificationBell from '../components/NotificationBell';
-import { useNotifications } from '../NotificationContext';
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import {
+    BookOpen,
+    Users,
+    Heart,
+    ArrowRight,
+    Plus,
+    Search,
+    Grid,
+    List,
+    User,
+    LogOut,
+    Loader2,
+    ChevronLeft,
+    ChevronRight,
+} from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { BookCard } from "@/components/BookCard"
+import { BookForm } from "@/components/BookForm"
+import { StatsCard } from "@/components/StatsCard"
+import { Link } from "react-router-dom"
+import { bookService } from "@/service/BookService"
+import type { GetAllBooksRequest, BookInfo, UserProfile } from "@/service/BookService"
+import NotificationBell from "../components/NotificationBell"
+import { useNotifications } from "../NotificationContext"
+import { useToast } from "@/hooks/use-toast"
+
 const Index = () => {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [activeTab, setActiveTab] = useState<string>('all-books'); // State for active tab
-    const { notifications, unreadCount, isConnected } = useNotifications();
+    const { toast } = useToast()
+    const [searchQuery, setSearchQuery] = useState("")
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+    const [showAddForm, setShowAddForm] = useState(false)
+    const [activeTab, setActiveTab] = useState<string>("all-books")
+    const { notifications, unreadCount, isConnected } = useNotifications()
+
+    // User profile state
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+    const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(0)
+    const [pageSize, setPageSize] = useState(12)
+    const [totalPages, setTotalPages] = useState(0)
+    const [totalElements, setTotalElements] = useState(0)
+
+    // Filter states
+    const [filters, setFilters] = useState({
+        shareable: undefined as boolean | undefined,
+        archived: undefined as boolean | undefined,
+        sortBy: "title" as string,
+        sortDirection: "asc" as "asc" | "desc",
+    })
 
     // State for fetched books
-    const [allBooks, setAllBooks] = useState<BookInfo[]>([]);
-    const [borrowedBooks, setBorrowedBooks] = useState<BookInfo[]>([]);
-    const [returnedBooks, setReturnedBooks] = useState<BookInfo[]>([]);
-    const [myBooks, setMyBooks] = useState<BookInfo[]>([]); // Assuming you'll fetch "My Books" directly
+    const [allBooks, setAllBooks] = useState<BookInfo[]>([])
+    const [borrowedBooks, setBorrowedBooks] = useState<BookInfo[]>([])
+    const [returnedBooks, setReturnedBooks] = useState<BookInfo[]>([])
+    const [myBooks, setMyBooks] = useState<BookInfo[]>([])
 
     // Loading states
-    const [isLoadingAllBooks, setIsLoadingAllBooks] = useState(true);
-    const [isLoadingBorrowedBooks, setIsLoadingBorrowedBooks] = useState(false);
-    const [isLoadingReturnedBooks, setIsLoadingReturnedBooks] = useState(false);
-    const [isLoadingMyBooks, setIsLoadingMyBooks] = useState(false);
+    const [isLoadingAllBooks, setIsLoadingAllBooks] = useState(true)
+    const [isLoadingBorrowedBooks, setIsLoadingBorrowedBooks] = useState(false)
+    const [isLoadingReturnedBooks, setIsLoadingReturnedBooks] = useState(false)
+    const [isLoadingMyBooks, setIsLoadingMyBooks] = useState(false)
 
     // Error states
-    const [errorAllBooks, setErrorAllBooks] = useState<string | null>(null);
-    const [errorBorrowedBooks, setErrorBorrowedBooks] = useState<string | null>(null);
-    const [errorReturnedBooks, setErrorReturnedBooks] = useState<string | null>(null);
-    const [errorMyBooks, setErrorMyBooks] = useState<string | null>(null);
+    const [errorAllBooks, setErrorAllBooks] = useState<string | null>(null)
+    const [errorBorrowedBooks, setErrorBorrowedBooks] = useState<string | null>(null)
+    const [errorReturnedBooks, setErrorReturnedBooks] = useState<string | null>(null)
+    const [errorMyBooks, setErrorMyBooks] = useState<string | null>(null)
 
-    // Mock stats for now, replace with actual API calls if you have them
-    const mockStats = {
-        totalBooks: 156, // This should come from an API if available
-        borrowedBooks: 23,
-        sharedBooks: 45,
-        returnedBooks: 78
-    };
+    // Stats state
+    const [stats, setStats] = useState({
+        totalBooks: 0,
+        totalBorrowed: 0,
+        totalShared: 0,
+        totalReturned: 0,
+    })
+
+    // Debounced search
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery)
+        }, 500)
+
+        return () => clearTimeout(timer)
+    }, [searchQuery])
+
+    // Reset page when search or filters change
+    useEffect(() => {
+        setCurrentPage(0)
+    }, [debouncedSearchQuery, filters, activeTab])
+
+    // Fetch user profile on component mount
+    useEffect(() => {
+        const fetchUserProfile = async () => {
+            try {
+                setIsLoadingProfile(true)
+                const profile = await bookService.getUserProfile()
+                profile.fullName = `${profile.firstName} ${profile.lastName}`
+                setUserProfile(profile)
+            } catch (error) {
+                console.error("Error fetching user profile:", error)
+                // Try to get from localStorage as fallback
+                const storedUser = localStorage.getItem("user")
+                if (storedUser) {
+                    try {
+                        const user = JSON.parse(storedUser)
+                        setUserProfile({
+                            ...user,
+                            fullName: `${user.firstName} ${user.lastName}`,
+                        })
+                    } catch (e) {
+                        console.error("Error parsing stored user:", e)
+                    }
+                }
+            } finally {
+                setIsLoadingProfile(false)
+            }
+        }
+
+        fetchUserProfile()
+    }, [])
 
     // --- Data Fetching Functions ---
-    const fetchAllBooks = useCallback(async (params?: GetAllBooksRequest) => {
-        setIsLoadingAllBooks(true);
-        setErrorAllBooks(null);
+    const fetchAllBooks = useCallback(
+        async (params?: GetAllBooksRequest) => {
+            setIsLoadingAllBooks(true)
+            setErrorAllBooks(null)
+            try {
+                const requestParams: GetAllBooksRequest = {
+                    page: currentPage,
+                    size: pageSize,
+                    searchText: debouncedSearchQuery || undefined,
+                    shareable: filters.shareable,
+                    archived: filters.archived,
+                    ...params,
+                }
+
+                const response = await bookService.getAllBooks(requestParams)
+                setAllBooks(response.content)
+                setTotalPages(response.totalPages)
+                setTotalElements(response.totalElements)
+            } catch (error) {
+                setErrorAllBooks(error.message)
+                toast({
+                    title: "Lỗi tải sách",
+                    description: error.message,
+                    variant: "destructive",
+                })
+            } finally {
+                setIsLoadingAllBooks(false)
+            }
+        },
+        [currentPage, pageSize, debouncedSearchQuery, filters, toast],
+    )
+
+    const fetchBorrowedBooks = useCallback(
+        async (params?: GetAllBooksRequest) => {
+            setIsLoadingBorrowedBooks(true)
+            setErrorBorrowedBooks(null)
+            try {
+                const requestParams: GetAllBooksRequest = {
+                    page: currentPage,
+                    size: pageSize,
+                    searchText: debouncedSearchQuery || undefined,
+                    ...params,
+                }
+
+                const response = await bookService.getAllBooksBorrowed(requestParams)
+                setBorrowedBooks(response.content)
+                setTotalPages(response.totalPages)
+                setTotalElements(response.totalElements)
+            } catch (error) {
+                setErrorBorrowedBooks(error.message)
+                toast({
+                    title: "Lỗi tải sách đã mượn",
+                    description: error.message,
+                    variant: "destructive",
+                })
+            } finally {
+                setIsLoadingBorrowedBooks(false)
+            }
+        },
+        [currentPage, pageSize, debouncedSearchQuery, toast],
+    )
+
+    const fetchReturnedBooks = useCallback(
+        async (params?: GetAllBooksRequest) => {
+            setIsLoadingReturnedBooks(true)
+            setErrorReturnedBooks(null)
+            try {
+                const requestParams: GetAllBooksRequest = {
+                    page: currentPage,
+                    size: pageSize,
+                    searchText: debouncedSearchQuery || undefined,
+                    returnApproved: true,
+                    ...params,
+                }
+
+                const response = await bookService.getAllBooksReturned(requestParams)
+                setReturnedBooks(response.content)
+                setTotalPages(response.totalPages)
+                setTotalElements(response.totalElements)
+            } catch (error) {
+                setErrorReturnedBooks(error.message)
+                toast({
+                    title: "Lỗi tải sách đã trả",
+                    description: error.message,
+                    variant: "destructive",
+                })
+            } finally {
+                setIsLoadingReturnedBooks(false)
+            }
+        },
+        [currentPage, pageSize, debouncedSearchQuery, toast],
+    )
+
+    const fetchMyBooks = useCallback(
+        async (params?: GetAllBooksRequest) => {
+            setIsLoadingMyBooks(true)
+            setErrorMyBooks(null)
+            try {
+                const requestParams: GetAllBooksRequest = {
+                    page: currentPage,
+                    size: pageSize,
+                    searchText: debouncedSearchQuery || undefined,
+                    shareable: filters.shareable,
+                    archived: filters.archived,
+                    ...params,
+                }
+
+                const response = await bookService.getAllBooksByOwner(requestParams)
+                setMyBooks(response.content)
+                setTotalPages(response.totalPages)
+                setTotalElements(response.totalElements)
+            } catch (error) {
+                setErrorMyBooks(error.message)
+                toast({
+                    title: "Lỗi tải sách của tôi",
+                    description: error.message,
+                    variant: "destructive",
+                })
+            } finally {
+                setIsLoadingMyBooks(false)
+            }
+        },
+        [currentPage, pageSize, debouncedSearchQuery, filters, toast],
+    )
+
+    // Fetch dashboard stats
+    const fetchStats = useCallback(async () => {
         try {
-            const response = await bookService.getAllBooks(params);
-            setAllBooks(response.content);
+            const statsData = await bookService.getDashboardStats();
+            const transformedStats = {
+                totalBooks: statsData.totalBooks?.value || 0, // Use optional chaining and default to 0
+                totalBorrowed: statsData.totalBorrowed?.value || 0,
+                totalShared: statsData.totalShared?.value || 0,
+                totalReturned: statsData.totalReturned?.value || 0,
+            };
+            setStats(transformedStats);
         } catch (error) {
-            setErrorAllBooks(error.message);
-        } finally {
-            setIsLoadingAllBooks(false);
+            console.error("Error fetching stats:", error)
         }
-    }, []);
-
-    const fetchBorrowedBooks = useCallback(async (params?: GetAllBooksRequest) => {
-        setIsLoadingBorrowedBooks(true);
-        setErrorBorrowedBooks(null);
-        try {
-            const response = await bookService.getAllBooksBorrowed(params);
-            setBorrowedBooks(response.content);
-        } catch (error) {
-            setErrorBorrowedBooks(error.message);
-        } finally {
-            setIsLoadingBorrowedBooks(false);
-        }
-    }, []);
-
-    const fetchReturnedBooks = useCallback(async (params?: GetAllBooksRequest) => {
-        setIsLoadingReturnedBooks(true);
-        setErrorReturnedBooks(null);
-        try {
-            const response = await bookService.getAllBooksReturned(params);
-            setReturnedBooks(response.content);
-        } catch (error) {
-            setErrorReturnedBooks(error.message);
-        } finally {
-            setIsLoadingReturnedBooks(false);
-        }
-    }, []);
-
-    const fetchMyBooks = useCallback(async (params?: GetAllBooksRequest) => {
-        setIsLoadingMyBooks(true);
-        setErrorMyBooks(null);
-        try {
-
-            const response = await bookService.getAllBooksByOwner(params);
-            setMyBooks(response.content);
-        } catch (error) {
-            setErrorMyBooks(error.message);
-        } finally {
-            setIsLoadingMyBooks(false);
-        }
-    }, []);
-
+    }, [])
 
     // --- useEffect for fetching data based on activeTab ---
     useEffect(() => {
-        if (activeTab === 'all-books') {
-            // Apply search query here if you want to filter "All Books"
-            fetchAllBooks({
-                page: 0,
-                size: 3, // Or whatever default page/size you want
-                //title: searchQuery // Pass search query if your API supports it
-            });
-        } else if (activeTab === 'borrowed') {
-            fetchBorrowedBooks({ page: 0, size: 10 });
-        } else if (activeTab === 'returned') {
-            fetchReturnedBooks({ page: 0, size: 10 });
-        } else if (activeTab === 'my-books') {
-            fetchMyBooks({ page: 0, size: 10 });
+        if (activeTab === "all-books") {
+            fetchAllBooks()
+        } else if (activeTab === "borrowed") {
+            fetchBorrowedBooks()
+        } else if (activeTab === "returned") {
+            fetchReturnedBooks()
+        } else if (activeTab === "my-books") {
+            fetchMyBooks()
         }
-        // No fetch for 'favorites' yet, as it's typically user-specific and might need a separate endpoint
-    }, [activeTab, fetchAllBooks, fetchBorrowedBooks, fetchReturnedBooks, fetchMyBooks, searchQuery]); // Re-fetch when tab or search query changes
+    }, [activeTab, fetchAllBooks, fetchBorrowedBooks, fetchReturnedBooks, fetchMyBooks])
+
+    // Fetch stats on component mount
+    useEffect(() => {
+        fetchStats()
+    }, [fetchStats])
 
     // --- Handle Search Functionality ---
-    // You might want a debounced search or trigger search on button click
     const handleSearch = () => {
-        // This will trigger the useEffect for 'all-books' if that's the active tab
-        // If search should apply to other tabs, you'd call their specific fetch functions
-        if (activeTab === 'all-books') {
-            fetchAllBooks({
-                page: 0,
-                size: 10,
-                //title: searchQuery // Assuming API filters by title
-            });
+        setCurrentPage(0)
+        if (activeTab === "all-books") {
+            fetchAllBooks()
+        } else if (activeTab === "borrowed") {
+            fetchBorrowedBooks()
+        } else if (activeTab === "returned") {
+            fetchReturnedBooks()
+        } else if (activeTab === "my-books") {
+            fetchMyBooks()
         }
-        // Add more conditions for other tabs if they also need search functionality
-    };
+    }
+
+    // Handle filter changes
+    const handleFilterChange = (key: string, value) => {
+        setFilters((prev) => ({
+            ...prev,
+            [key]: value === "all" ? undefined : value,
+        }))
+    }
+
+    // Handle page changes
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 0 && newPage < totalPages) {
+            setCurrentPage(newPage)
+        }
+    }
+
+    // Handle page size change
+    const handlePageSizeChange = (newSize: string) => {
+        setPageSize(Number.parseInt(newSize))
+        setCurrentPage(0)
+    }
+
+    // Handle logout
+    const handleLogout = () => {
+        localStorage.removeItem("authToken")
+        localStorage.removeItem("user")
+        localStorage.removeItem("role")
+        window.location.href = "/login"
+    }
 
     // Determine which book list and loading/error state to display based on the active tab
     const getBooksToDisplay = () => {
         switch (activeTab) {
-            case 'all-books':
-                return { books: allBooks, isLoading: isLoadingAllBooks, error: errorAllBooks };
-            case 'borrowed':
-                return { books: borrowedBooks, isLoading: isLoadingBorrowedBooks, error: errorBorrowedBooks };
-            case 'returned':
-                return { books: returnedBooks, isLoading: isLoadingReturnedBooks, error: errorReturnedBooks };
-            case 'my-books':
-                return { books: myBooks, isLoading: isLoadingMyBooks, error: errorMyBooks };
-            case 'favorites':
-                return { books: [], isLoading: false, error: null }; // No API for favorites yet
+            case "all-books":
+                return { books: allBooks, isLoading: isLoadingAllBooks, error: errorAllBooks }
+            case "borrowed":
+                return { books: borrowedBooks, isLoading: isLoadingBorrowedBooks, error: errorBorrowedBooks }
+            case "returned":
+                return { books: returnedBooks, isLoading: isLoadingReturnedBooks, error: errorReturnedBooks }
+            case "my-books":
+                return { books: myBooks, isLoading: isLoadingMyBooks, error: errorMyBooks }
+            case "favorites":
+                return { books: [], isLoading: false, error: null }
             default:
-                return { books: [], isLoading: false, error: null };
+                return { books: [], isLoading: false, error: null }
         }
-    };
+    }
 
-    const { books, isLoading, error } = getBooksToDisplay();
+    const { books, isLoading, error } = getBooksToDisplay()
 
+    const refreshCurrentTab = () => {
+        if (activeTab === "all-books") {
+            fetchAllBooks()
+        } else if (activeTab === "borrowed") {
+            fetchBorrowedBooks()
+        } else if (activeTab === "returned") {
+            fetchReturnedBooks()
+        } else if (activeTab === "my-books") {
+            fetchMyBooks()
+        }
+        fetchStats() // Also refresh stats
+    }
+
+    // Get user initials for avatar
+    const getUserInitials = (user: UserProfile | null) => {
+        if (!user) return "U"
+        return `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase()
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -183,8 +408,8 @@ const Index = () => {
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyPress={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleSearch();
+                                        if (e.key === "Enter") {
+                                            handleSearch()
                                         }
                                     }}
                                     className="pl-10 w-64 border-blue-200 focus:border-blue-400"
@@ -194,7 +419,7 @@ const Index = () => {
                             {/* Navigation Menu */}
                             <div className="flex items-center space-x-2">
                                 <Link to="/my-books">
-                                    <Button variant="outline" className="border-blue-200 hover:bg-blue-50">
+                                    <Button variant="outline" className="border-blue-200 hover:bg-blue-50 bg-transparent">
                                         <BookOpen className="h-4 w-4 mr-2" />
                                         Sách của tôi
                                     </Button>
@@ -207,74 +432,72 @@ const Index = () => {
                                     Thêm sách
                                 </Button>
 
+                                {/* Connection status and notifications */}
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} />
+                                        <span className="text-sm text-gray-500">{isConnected ? "Online" : "Offline"}</span>
+                                    </div>
+                                    <NotificationBell />
+                                </div>
+
                                 {/* User Menu */}
                                 <div className="flex items-center space-x-2">
-                                    <Button variant="ghost" size="sm">
-                                        <User className="h-4 w-4" />
-                                    </Button>
-                                    <Link to="/login">
-                                        <Button variant="ghost" size="sm">
-                                            <LogOut className="h-4 w-4" />
-                                        </Button>
-                                    </Link>
+                                    {!isLoadingProfile && userProfile && (
+                                        <div className="text-sm text-gray-600 mr-2">
+                                            Xin chào, <span className="font-medium text-blue-600">{userProfile.fullName}</span>
+                                        </div>
+                                    )}
+
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage
+                                                        src={userProfile?.imageId ? `/api/images/${userProfile.imageId}` : undefined}
+                                                        alt={userProfile?.fullName}
+                                                    />
+                                                    <AvatarFallback>{getUserInitials(userProfile)}</AvatarFallback>
+                                                </Avatar>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent className="w-56" align="end" forceMount>
+                                            <DropdownMenuLabel className="font-normal">
+                                                <div className="flex flex-col space-y-1">
+                                                    <p className="text-sm font-medium leading-none">{userProfile?.fullName}</p>
+                                                    <p className="text-xs leading-none text-muted-foreground">{userProfile?.email}</p>
+                                                </div>
+                                            </DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem>
+                                                <User className="mr-2 h-4 w-4" />
+                                                <span>Hồ sơ</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem>
+                                                <BookOpen className="mr-2 h-4 w-4" />
+                                                <Link to="/my-books">Sách của tôi</Link>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={handleLogout}>
+                                                <LogOut className="mr-2 h-4 w-4" />
+                                                <span>Đăng xuất</span>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-                        <span className="text-sm text-gray-500">
-                            {isConnected ? 'Online' : 'Offline'}
-                        </span>
-                    </div>
-                    <NotificationBell />
-                </div>
             </header>
 
             <div className="container mx-auto px-6 py-8">
-                {/* Stats Section - Keep mock for now or fetch from another API */}
-                <p className="text-gray-500 mb-4">
-                    You have {unreadCount} unread notifications
-                </p>
-
-                {/* Debug info */}
-                <div className="mt-8 p-4 bg-gray-100 rounded-lg">
-                    <h3 className="font-semibold mb-2">Debug Info:</h3>
-                    <p>WebSocket Connected: {isConnected ? 'Yes' : 'No'}</p>
-                    <p>Total Notifications: {notifications.length}</p>
-                    <p>Unread Count: {unreadCount}</p>
-                </div>
+                {/* Stats Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <StatsCard
-                        title="Tổng số sách"
-                        value={mockStats.totalBooks} // Replace with actual total if available
-                        icon={BookOpen}
-                        color="blue"
-                        trend="+12%"
-                    />
-                    <StatsCard
-                        title="Sách đã mượn"
-                        value={mockStats.borrowedBooks} // Replace with actual borrowed count
-                        icon={Users}
-                        color="green"
-                        trend="+5%"
-                    />
-                    <StatsCard
-                        title="Sách chia sẻ"
-                        value={mockStats.sharedBooks} // Replace with actual shared count
-                        icon={Heart}
-                        color="purple"
-                        trend="+8%"
-                    />
-                    <StatsCard
-                        title="Sách đã trả"
-                        value={mockStats.returnedBooks} // Replace with actual returned count
-                        icon={ArrowRight}
-                        color="orange"
-                        trend="+15%"
-                    />
+                    <StatsCard title="Tổng số sách" value={stats.totalBooks} icon={BookOpen} color="blue" trend="+12%" />
+                    <StatsCard title="Sách đã mượn" value={stats.totalBorrowed} icon={Users} color="green" trend="+5%" />
+                    <StatsCard title="Sách chia sẻ" value={stats.totalShared} icon={Heart} color="purple" trend="+8%" />
+                    <StatsCard title="Sách đã trả" value={stats.totalReturned} icon={ArrowRight} color="orange" trend="+15%" />
                 </div>
 
                 {/* Main Content */}
@@ -299,30 +522,70 @@ const Index = () => {
                         </TabsList>
 
                         <div className="flex items-center space-x-2">
+                            {/* View Mode Toggle */}
                             <Button
-                                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                                variant={viewMode === "grid" ? "default" : "outline"}
                                 size="sm"
-                                onClick={() => setViewMode('grid')}
-                                className={viewMode === 'grid' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                                onClick={() => setViewMode("grid")}
+                                className={viewMode === "grid" ? "bg-blue-600 hover:bg-blue-700" : ""}
                             >
                                 <Grid className="h-4 w-4" />
                             </Button>
                             <Button
-                                variant={viewMode === 'list' ? 'default' : 'outline'}
+                                variant={viewMode === "list" ? "default" : "outline"}
                                 size="sm"
-                                onClick={() => setViewMode('list')}
-                                className={viewMode === 'list' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                                onClick={() => setViewMode("list")}
+                                className={viewMode === "list" ? "bg-blue-600 hover:bg-blue-700" : ""}
                             >
                                 <List className="h-4 w-4" />
                             </Button>
-                            <Button variant="outline" size="sm">
-                                <Filter className="h-4 w-4 mr-2" />
-                                Lọc
-                            </Button>
+
+                            {/* Filters */}
+                            <Select
+                                onValueChange={(value) =>
+                                    handleFilterChange("shareable", value === "true" ? true : value === "false" ? false : undefined)
+                                }
+                            >
+                                <SelectTrigger className="w-40">
+                                    <SelectValue placeholder="Trạng thái chia sẻ" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tất cả</SelectItem>
+                                    <SelectItem value="true">Có thể chia sẻ</SelectItem>
+                                    <SelectItem value="false">Riêng tư</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <Select
+                                onValueChange={(value) =>
+                                    handleFilterChange("archived", value === "true" ? true : value === "false" ? false : undefined)
+                                }
+                            >
+                                <SelectTrigger className="w-40">
+                                    <SelectValue placeholder="Trạng thái lưu trữ" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tất cả</SelectItem>
+                                    <SelectItem value="false">Đang hoạt động</SelectItem>
+                                    <SelectItem value="true">Đã lưu trữ</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <Select onValueChange={handlePageSizeChange} defaultValue={pageSize.toString()}>
+                                <SelectTrigger className="w-20">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="6">6</SelectItem>
+                                    <SelectItem value="12">12</SelectItem>
+                                    <SelectItem value="24">24</SelectItem>
+                                    <SelectItem value="48">48</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
-                    {/* All Books Tab Content */}
+                    {/* Tab Contents */}
                     <TabsContent value="all-books" className="space-y-6">
                         {isLoading ? (
                             <div className="flex justify-center items-center py-12">
@@ -330,29 +593,96 @@ const Index = () => {
                                 <span className="ml-2 text-gray-600">Đang tải sách...</span>
                             </div>
                         ) : error ? (
-                            <div className="text-center py-12 text-red-600">
-                                <p>{error}</p>
+                            <div className="text-center py-12">
+                                <p className="text-red-600 mb-4">{error}</p>
+                                <Button onClick={() => fetchAllBooks()} variant="outline">
+                                    Thử lại
+                                </Button>
                             </div>
                         ) : books.length === 0 ? (
                             <div className="text-center py-12 text-gray-600">
                                 <p>Không tìm thấy sách nào.</p>
                             </div>
                         ) : (
-                            <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-                                {books.map((book) => (
-                                    <BookCard
-                                        key={book.id}
-                                        book={book}
-                                        viewMode={viewMode}
-                                        showActions={true}
-                                        onBookUpdate={() => fetchAllBooks({ page: 0, size: 10 })}
-                                    />
-                                ))}
-                            </div>
+                            <>
+                                <div
+                                    className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"}`}
+                                >
+                                    {books.map((book) => (
+                                        <BookCard
+                                            key={book.id}
+                                            book={book}
+                                            viewMode={viewMode}
+                                            showActions={true}
+                                            onBookUpdate={refreshCurrentTab}
+                                            currentUser={userProfile}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Pagination */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between mt-8">
+                                        <div className="text-sm text-gray-700">
+                                            Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}{" "}
+                                            trong tổng số {totalElements} sách
+                                        </div>
+
+                                        <div className="flex items-center space-x-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 0}
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                                Trước
+                                            </Button>
+
+                                            <div className="flex items-center space-x-1">
+                                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                                    let pageNum
+                                                    if (totalPages <= 5) {
+                                                        pageNum = i
+                                                    } else if (currentPage < 3) {
+                                                        pageNum = i
+                                                    } else if (currentPage > totalPages - 4) {
+                                                        pageNum = totalPages - 5 + i
+                                                    } else {
+                                                        pageNum = currentPage - 2 + i
+                                                    }
+
+                                                    return (
+                                                        <Button
+                                                            key={pageNum}
+                                                            variant={currentPage === pageNum ? "default" : "outline"}
+                                                            size="sm"
+                                                            onClick={() => handlePageChange(pageNum)}
+                                                            className="w-8 h-8 p-0"
+                                                        >
+                                                            {pageNum + 1}
+                                                        </Button>
+                                                    )
+                                                })}
+                                            </div>
+
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === totalPages - 1}
+                                            >
+                                                Sau
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </TabsContent>
 
-                    {/* My Books Tab Content */}
+                    {/* Similar structure for other tabs */}
                     <TabsContent value="my-books" className="space-y-6">
                         {isLoading ? (
                             <div className="flex justify-center items-center py-12">
@@ -360,35 +690,102 @@ const Index = () => {
                                 <span className="ml-2 text-gray-600">Đang tải sách của bạn...</span>
                             </div>
                         ) : error ? (
-                            <div className="text-center py-12 text-red-600">
-                                <p>{error}</p>
+                            <div className="text-center py-12">
+                                <p className="text-red-600 mb-4">{error}</p>
+                                <Button onClick={() => fetchMyBooks()} variant="outline">
+                                    Thử lại
+                                </Button>
                             </div>
                         ) : books.length === 0 ? (
                             <div className="text-center py-12 text-gray-600">
                                 <p>Bạn chưa thêm sách nào.</p>
-                                <Link to="/my-books">
-                                    <Button className="mt-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                                        <BookOpen className="h-4 w-4 mr-2" />
-                                        Đi đến Sách của tôi
-                                    </Button>
-                                </Link>
+                                <Button
+                                    className="mt-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                                    onClick={() => setShowAddForm(true)}
+                                >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Thêm sách đầu tiên
+                                </Button>
                             </div>
                         ) : (
-                            <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-                                {books.map((book) => (
-                                    <BookCard
-                                        key={book.id}
-                                        book={book}
-                                        viewMode={viewMode}
-                                        showOwnerActions={true}
-                                        onBookUpdate={() => fetchMyBooks({ page: 0, size: 10 })}
-                                    />
-                                ))}
-                            </div>
+                            <>
+                                <div
+                                    className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"}`}
+                                >
+                                    {books.map((book) => (
+                                        <BookCard
+                                            key={book.id}
+                                            book={book}
+                                            viewMode={viewMode}
+                                            showOwnerActions={true}
+                                            onBookUpdate={refreshCurrentTab}
+                                            currentUser={userProfile}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Pagination for My Books */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between mt-8">
+                                        <div className="text-sm text-gray-700">
+                                            Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}{" "}
+                                            trong tổng số {totalElements} sách
+                                        </div>
+
+                                        <div className="flex items-center space-x-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 0}
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                                Trước
+                                            </Button>
+
+                                            <div className="flex items-center space-x-1">
+                                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                                    let pageNum
+                                                    if (totalPages <= 5) {
+                                                        pageNum = i
+                                                    } else if (currentPage < 3) {
+                                                        pageNum = i
+                                                    } else if (currentPage > totalPages - 4) {
+                                                        pageNum = totalPages - 5 + i
+                                                    } else {
+                                                        pageNum = currentPage - 2 + i
+                                                    }
+
+                                                    return (
+                                                        <Button
+                                                            key={pageNum}
+                                                            variant={currentPage === pageNum ? "default" : "outline"}
+                                                            size="sm"
+                                                            onClick={() => handlePageChange(pageNum)}
+                                                            className="w-8 h-8 p-0"
+                                                        >
+                                                            {pageNum + 1}
+                                                        </Button>
+                                                    )
+                                                })}
+                                            </div>
+
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === totalPages - 1}
+                                            >
+                                                Sau
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </TabsContent>
 
-                    {/* Borrowed Books Tab Content */}
                     <TabsContent value="borrowed" className="space-y-6">
                         {isLoading ? (
                             <div className="flex justify-center items-center py-12">
@@ -396,8 +793,11 @@ const Index = () => {
                                 <span className="ml-2 text-gray-600">Đang tải sách đã mượn...</span>
                             </div>
                         ) : error ? (
-                            <div className="text-center py-12 text-red-600">
-                                <p>{error}</p>
+                            <div className="text-center py-12">
+                                <p className="text-red-600 mb-4">{error}</p>
+                                <Button onClick={() => fetchBorrowedBooks()} variant="outline">
+                                    Thử lại
+                                </Button>
                             </div>
                         ) : books.length === 0 ? (
                             <Card className="border-orange-200 bg-orange-50/50">
@@ -410,21 +810,84 @@ const Index = () => {
                                 </CardContent>
                             </Card>
                         ) : (
-                            <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-                                {books.map((book) => (
-                                    <BookCard
-                                        key={book.id}
-                                        book={book}
-                                        viewMode={viewMode}
-                                        showReturnActions={true}
-                                        onBookUpdate={() => fetchBorrowedBooks({ page: 0, size: 10 })}
-                                    />
-                                ))}
-                            </div>
+                            <>
+                                <div
+                                    className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"}`}
+                                >
+                                    {books.map((book) => (
+                                        <BookCard
+                                            key={book.id}
+                                            book={book}
+                                            viewMode={viewMode}
+                                            showReturnActions={true}
+                                            onBookUpdate={refreshCurrentTab}
+                                            currentUser={userProfile}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Pagination for Borrowed Books */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between mt-8">
+                                        <div className="text-sm text-gray-700">
+                                            Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}{" "}
+                                            trong tổng số {totalElements} sách
+                                        </div>
+
+                                        <div className="flex items-center space-x-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 0}
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                                Trước
+                                            </Button>
+
+                                            <div className="flex items-center space-x-1">
+                                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                                    let pageNum
+                                                    if (totalPages <= 5) {
+                                                        pageNum = i
+                                                    } else if (currentPage < 3) {
+                                                        pageNum = i
+                                                    } else if (currentPage > totalPages - 4) {
+                                                        pageNum = totalPages - 5 + i
+                                                    } else {
+                                                        pageNum = currentPage - 2 + i
+                                                    }
+
+                                                    return (
+                                                        <Button
+                                                            key={pageNum}
+                                                            variant={currentPage === pageNum ? "default" : "outline"}
+                                                            size="sm"
+                                                            onClick={() => handlePageChange(pageNum)}
+                                                            className="w-8 h-8 p-0"
+                                                        >
+                                                            {pageNum + 1}
+                                                        </Button>
+                                                    )
+                                                })}
+                                            </div>
+
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === totalPages - 1}
+                                            >
+                                                Sau
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </TabsContent>
 
-                    {/* Returned Books Tab Content */}
                     <TabsContent value="returned" className="space-y-6">
                         {isLoading ? (
                             <div className="flex justify-center items-center py-12">
@@ -432,8 +895,11 @@ const Index = () => {
                                 <span className="ml-2 text-gray-600">Đang tải sách đã trả...</span>
                             </div>
                         ) : error ? (
-                            <div className="text-center py-12 text-red-600">
-                                <p>{error}</p>
+                            <div className="text-center py-12">
+                                <p className="text-red-600 mb-4">{error}</p>
+                                <Button onClick={() => fetchReturnedBooks()} variant="outline">
+                                    Thử lại
+                                </Button>
                             </div>
                         ) : books.length === 0 ? (
                             <Card className="border-green-200 bg-green-50/50">
@@ -446,17 +912,81 @@ const Index = () => {
                                 </CardContent>
                             </Card>
                         ) : (
-                            <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-                                {books.map((book) => (
-                                    <BookCard
-                                        key={book.id}
-                                        book={book}
-                                        viewMode={viewMode}
-                                        showApprovalActions={true}
-                                        onBookUpdate={() => fetchReturnedBooks({ page: 0, size: 10 })}
-                                    />
-                                ))}
-                            </div>
+                            <>
+                                <div
+                                    className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"}`}
+                                >
+                                    {books.map((book) => (
+                                        <BookCard
+                                            key={book.id}
+                                            book={book}
+                                            viewMode={viewMode}
+                                            showApprovalActions={true}
+                                            onBookUpdate={refreshCurrentTab}
+                                            currentUser={userProfile}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Pagination for Returned Books */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between mt-8">
+                                        <div className="text-sm text-gray-700">
+                                            Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}{" "}
+                                            trong tổng số {totalElements} sách
+                                        </div>
+
+                                        <div className="flex items-center space-x-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 0}
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                                Trước
+                                            </Button>
+
+                                            <div className="flex items-center space-x-1">
+                                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                                    let pageNum
+                                                    if (totalPages <= 5) {
+                                                        pageNum = i
+                                                    } else if (currentPage < 3) {
+                                                        pageNum = i
+                                                    } else if (currentPage > totalPages - 4) {
+                                                        pageNum = totalPages - 5 + i
+                                                    } else {
+                                                        pageNum = currentPage - 2 + i
+                                                    }
+
+                                                    return (
+                                                        <Button
+                                                            key={pageNum}
+                                                            variant={currentPage === pageNum ? "default" : "outline"}
+                                                            size="sm"
+                                                            onClick={() => handlePageChange(pageNum)}
+                                                            className="w-8 h-8 p-0"
+                                                        >
+                                                            {pageNum + 1}
+                                                        </Button>
+                                                    )
+                                                })}
+                                            </div>
+
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === totalPages - 1}
+                                            >
+                                                Sau
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </TabsContent>
 
@@ -476,11 +1006,9 @@ const Index = () => {
             </div>
 
             {/* Add Book Form Modal */}
-            {showAddForm && (
-                <BookForm onClose={() => setShowAddForm(false)} />
-            )}
+            {showAddForm && <BookForm onClose={() => setShowAddForm(false)} onSuccess={refreshCurrentTab} />}
         </div>
-    );
-};
+    )
+}
 
-export default Index;
+export default Index

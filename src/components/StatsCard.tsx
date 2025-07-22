@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,12 +33,12 @@ const colorVariants = {
   }
 };
 
-export const StatsCard: React.FC<StatsCardProps> = ({ 
-  title, 
-  value, 
-  icon: Icon, 
-  color, 
-  trend 
+export const StatsCard: React.FC<StatsCardProps> = ({
+  title,
+  value,
+  icon: Icon,
+  color,
+  trend
 }) => {
   const variant = colorVariants[color];
 
