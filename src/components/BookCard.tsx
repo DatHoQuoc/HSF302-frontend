@@ -34,10 +34,11 @@ interface BookCardProps {
 export const BookCard: React.FC<BookCardProps> = ({
   book,
   viewMode = "grid",
-  showActions = false,
-  showOwnerActions = false,
-  showReturnActions = false,
-  showApprovalActions = false,
+  // The following props will effectively be ignored for action button visibility
+  // showActions = false,
+  // showOwnerActions = false,
+  // showReturnActions = false,
+  // showApprovalActions = false,
   onBookUpdate,
   currentUser,
 }) => {
@@ -48,6 +49,8 @@ export const BookCard: React.FC<BookCardProps> = ({
 
   const isOwner = currentUser && book.ownerInfo?.id === currentUser.id
   const isBorrower = currentUser && book.borrowerInfo?.id === currentUser.id
+  // canBorrow is still relevant for the 'Mượn' button's disabled state or visual cue,
+  // but it won't hide the button entirely based on the request.
   const canBorrow = book.shareable && !book.archived && !book.borrowerInfo && !isOwner
 
   const handleBorrowBook = async (e: React.MouseEvent) => {
@@ -285,71 +288,63 @@ export const BookCard: React.FC<BookCardProps> = ({
                     Chi tiết
                   </Button>
 
-                  {/* Action Buttons */}
-                  {showActions && canBorrow && (
-                    <Button
-                      onClick={handleBorrowBook}
-                      disabled={isActionLoading}
-                      size="sm"
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                    >
-                      <BookOpen className="h-4 w-4 mr-1" />
-                      Mượn
-                    </Button>
-                  )}
+                  {/* Action Buttons - Always visible */}
+                  <Button
+                    onClick={handleBorrowBook}
+                    disabled={isActionLoading}
+                    size="sm"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  >
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Mượn
+                  </Button>
 
-                  {showReturnActions && isBorrower && (
-                    <Button onClick={handleReturnBook} disabled={isActionLoading} variant="outline" size="sm">
-                      <BookOpen className="h-4 w-4 mr-1" />
-                      Trả sách
-                    </Button>
-                  )}
+                  <Button onClick={handleReturnBook} disabled={isActionLoading} variant="outline" size="sm">
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Trả sách
+                  </Button>
 
-                  {showApprovalActions && isOwner && book.borrowerInfo && (
-                    <Button
-                      onClick={handleApproveReturn}
-                      disabled={isActionLoading}
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <BookOpen className="h-4 w-4 mr-1" />
-                      Duyệt
-                    </Button>
-                  )}
+                  <Button
+                    onClick={handleApproveReturn}
+                    disabled={isActionLoading}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Duyệt
+                  </Button>
 
-                  {showOwnerActions && isOwner && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setShowEditForm(true)
-                          }}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Chỉnh sửa
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleToggleShareable}>
-                          <Share2 className="h-4 w-4 mr-2" />
-                          {book.shareable ? "Tắt chia sẻ" : "Bật chia sẻ"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleToggleArchived}>
-                          <Archive className="h-4 w-4 mr-2" />
-                          {book.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleDeleteBook} className="text-red-600 focus:text-red-600">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Xóa sách
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowEditForm(true)
+                        }}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Chỉnh sửa
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleToggleShareable}>
+                        <Share2 className="h-4 w-4 mr-2" />
+                        {book.shareable ? "Tắt chia sẻ" : "Bật chia sẻ"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleToggleArchived}>
+                        <Archive className="h-4 w-4 mr-2" />
+                        {book.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleDeleteBook} className="text-red-600 focus:text-red-600">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Xóa sách
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </div>
@@ -362,7 +357,7 @@ export const BookCard: React.FC<BookCardProps> = ({
           onClose={() => setShowDetailsModal(false)}
           bookId={book.id}
           onBookUpdate={onBookUpdate}
-          currentUser={currentUser}
+          //currentUser={currentUser}
         />
 
         {showEditForm && (
@@ -409,17 +404,16 @@ export const BookCard: React.FC<BookCardProps> = ({
                 Chi tiết
               </Button>
 
-              {showActions && canBorrow && (
-                <Button
-                  onClick={handleBorrowBook}
-                  disabled={isActionLoading}
-                  size="sm"
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                >
-                  <BookOpen className="h-4 w-4 mr-1" />
-                  Mượn
-                </Button>
-              )}
+              {/* Action Buttons - Always visible */}
+              <Button
+                onClick={handleBorrowBook}
+                disabled={isActionLoading}
+                size="sm"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              >
+                <BookOpen className="h-4 w-4 mr-1" />
+                Mượn
+              </Button>
             </div>
           </div>
 
@@ -482,72 +476,66 @@ export const BookCard: React.FC<BookCardProps> = ({
             {/* Synopsis */}
             {book.synopsis && <p className="text-sm text-gray-700 line-clamp-2">{book.synopsis}</p>}
 
-            {/* Action Buttons */}
+            {/* Action Buttons - Always visible */}
             <div className="pt-2 space-y-2">
-              {showReturnActions && isBorrower && (
+              <Button
+                onClick={handleReturnBook}
+                disabled={isActionLoading}
+                variant="outline"
+                size="sm"
+                className="w-full bg-transparent"
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                Trả sách
+              </Button>
+
+              <Button
+                onClick={handleApproveReturn}
+                disabled={isActionLoading}
+                size="sm"
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                Duyệt trả sách
+              </Button>
+
+              <div className="flex space-x-1">
                 <Button
-                  onClick={handleReturnBook}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowEditForm(true)
+                  }}
                   disabled={isActionLoading}
                   variant="outline"
                   size="sm"
-                  className="w-full bg-transparent"
+                  className="flex-1"
                 >
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Trả sách
+                  <Edit className="h-4 w-4 mr-1" />
+                  Sửa
                 </Button>
-              )}
-
-              {showApprovalActions && isOwner && book.borrowerInfo && (
-                <Button
-                  onClick={handleApproveReturn}
-                  disabled={isActionLoading}
-                  size="sm"
-                  className="w-full bg-green-600 hover:bg-green-700"
-                >
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Duyệt trả sách
-                </Button>
-              )}
-
-              {showOwnerActions && isOwner && (
-                <div className="flex space-x-1">
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setShowEditForm(true)
-                    }}
-                    disabled={isActionLoading}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Sửa
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={handleToggleShareable}>
-                        <Share2 className="h-4 w-4 mr-2" />
-                        {book.shareable ? "Tắt chia sẻ" : "Bật chia sẻ"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleToggleArchived}>
-                        <Archive className="h-4 w-4 mr-2" />
-                        {book.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleDeleteBook} className="text-red-600 focus:text-red-600">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Xóa sách
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleToggleShareable}>
+                      <Share2 className="h-4 w-4 mr-2" />
+                      {book.shareable ? "Tắt chia sẻ" : "Bật chia sẻ"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleToggleArchived}>
+                      <Archive className="h-4 w-4 mr-2" />
+                      {book.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleDeleteBook} className="text-red-600 focus:text-red-600">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Xóa sách
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -559,7 +547,7 @@ export const BookCard: React.FC<BookCardProps> = ({
         onClose={() => setShowDetailsModal(false)}
         bookId={book.id}
         onBookUpdate={onBookUpdate}
-        currentUser={currentUser}
+        //currentUser={currentUser}
       />
 
       {showEditForm && (

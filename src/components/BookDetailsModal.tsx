@@ -310,11 +310,9 @@ export const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
     }
 
     try {
-      // Bạn có thể thêm logic kiểm tra quyền tải xuống ở đây nếu backend có cung cấp API đó
-      // Ví dụ: const canDownload = await bookService.checkDownloadPermission(book.id, currentUser.id);
-      // if (!canDownload) { ... return; }
+      
 
-      const downloadUrl = bookService.getDownloadContentUrl(book.id, parseInt(currentUser.id));
+      const downloadUrl = await  bookService.getBookPdfUrl(book.id, parseInt(currentUser.id));
       // Tạo một thẻ <a> ẩn và click để kích hoạt tải xuống
       const link = document.createElement('a');
       link.href = downloadUrl;
