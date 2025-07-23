@@ -217,7 +217,7 @@ const Index = () => {
           page: currentPage,
           size: pageSize,
           searchText: debouncedSearchQuery || undefined,
-          returnApproved: true,
+          returnApproved: false,
           ...params,
         }
 
