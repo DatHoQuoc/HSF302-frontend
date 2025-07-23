@@ -75,74 +75,80 @@ export const BookForm: React.FC<BookFormProps> = ({ onClose, onSuccess, book, is
     return true
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
 
-    if (!validateForm()) {
-      return
-    }
-
-    setIsSubmitting(true)
-    setError(null)
-
-    try {
-      const bookData: CreateBookRequest = {
-        id: book?.id || 0, // For new books, this might be ignored by the API
-        title: formData.title.trim(),
-        authorName: formData.authorName.trim(),
-        isbn: formData.isbn.trim(),
-        synopsis: formData.synopsis.trim(),
-        shareable: formData.shareable,
-      }
-
-      if (isEditing && book?.id) {
-        // Update existing book
-        await bookService.updateBook(book.id, bookData)
-        toast({
-          title: "Cập nhật sách thành công",
-          description: `Đã cập nhật thông tin sách "${formData.title}"`,
-        })
-      } else {
-        // Create new book
-        await bookService.createBook(bookData)
-        toast({
-          title: "Thêm sách thành công",
-          description: `Đã thêm sách "${formData.title}" vào thư viện`,
-        })
-      }
-
-      // Upload cover if provided
-      if (coverFile && book?.id) {
-        try {
-          await bookService.uploadBookCover(book.id, coverFile)
-          toast({
-            title: "Upload ảnh bìa thành công",
-            description: "Ảnh bìa sách đã được cập nhật",
-          })
-        } catch (coverError) {
-          console.error("Error uploading cover:", coverError)
-          toast({
-            title: "Lỗi upload ảnh bìa",
-            description: "Sách đã được lưu nhưng không thể upload ảnh bìa",
-            variant: "destructive",
-          })
-        }
-      }
-
-      onSuccess?.()
-      onClose()
-    } catch (error) {
-      console.error("Error saving book:", error)
-      setError(error.message || "Đã xảy ra lỗi khi lưu sách")
-      toast({
-        title: isEditing ? "Lỗi cập nhật sách" : "Lỗi thêm sách",
-        description: error.message || "Vui lòng thử lại",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
+  if (!validateForm()) {
+    return
   }
+
+  setIsSubmitting(true)
+  setError(null)
+
+  try {
+    const bookData: CreateBookRequest = {
+      id: book?.id || 0, // 0 cho create, existing id cho update
+      title: formData.title.trim(),
+      authorName: formData.authorName.trim(),
+      isbn: formData.isbn.trim(),
+      synopsis: formData.synopsis.trim(),
+      shareable: formData.shareable,
+    }
+
+    // POST cho cả create và update
+    const savedBookId = await bookService.createBook(bookData) // Trả về Integer (id)
+    
+    toast({
+      title: isEditing ? "Cập nhật sách thành công" : "Thêm sách thành công",
+      description: `Đã ${isEditing ? 'cập nhật' : 'thêm'} sách "${formData.title}"`,
+    })
+
+    // Upload cover - sử dụng id đã được save
+    const bookIdForUpload = savedBookId || book?.id
+    
+    console.log("Debug upload:", {
+      coverFile: !!coverFile,
+      bookIdForUpload,
+      savedBookId,
+      originalBookId: book?.id
+    })
+
+    if (coverFile && bookIdForUpload) {
+      try {
+        await bookService.uploadBookCover(bookIdForUpload, coverFile)
+        toast({
+          title: "Upload ảnh bìa thành công",
+          description: "Ảnh bìa sách đã được cập nhật",
+        })
+      } catch (coverError) {
+        console.error("Error uploading cover:", coverError)
+        toast({
+          title: "Lỗi upload ảnh bìa",
+          description: "Sách đã được lưu nhưng không thể upload ảnh bìa",
+          variant: "destructive",
+        })
+      }
+    } else {
+      console.log("Skipping cover upload:", {
+        hasCoverFile: !!coverFile,
+        hasBookId: !!bookIdForUpload
+      })
+    }
+
+    onSuccess?.()
+    onClose()
+  } catch (error) {
+    console.error("Error saving book:", error)
+    setError(error.message || "Đã xảy ra lỗi khi lưu sách")
+    toast({
+      title: isEditing ? "Lỗi cập nhật sách" : "Lỗi thêm sách",
+      description: error.message || "Vui lòng thử lại",
+      variant: "destructive",
+    })
+  } finally {
+    setIsSubmitting(false)
+  }
+}
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

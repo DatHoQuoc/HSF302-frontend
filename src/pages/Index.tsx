@@ -510,16 +510,16 @@ const Index = () => {
       <div className="container mx-auto px-6 py-8">
         {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard title="Tổng số sách" value={stats.totalBooks} icon={BookOpen} color="blue" trend="+12%" />
-          <StatsCard title="Sách đã mượn" value={stats.totalBorrowed} icon={Users} color="green" trend="+5%" />
-          <StatsCard title="Sách chia sẻ" value={stats.totalShared} icon={Heart} color="purple" trend="+8%" />
-          <StatsCard title="Sách đã trả" value={stats.totalReturned} icon={ArrowRight} color="orange" trend="+15%" />
+          <StatsCard title="Tổng số sách" value={stats.totalBooks} icon={BookOpen} color="blue"  />
+          <StatsCard title="Sách đã mượn" value={stats.totalBorrowed} icon={Users} color="green"  />
+          <StatsCard title="Sách chia sẻ" value={stats.totalShared} icon={Heart} color="purple"  />
+          <StatsCard title="Sách đã trả" value={stats.totalReturned} icon={ArrowRight} color="orange"  />
         </div>
 
         {/* Main Content */}
         <Tabs defaultValue="all-books" className="space-y-6" onValueChange={setActiveTab}>
           <div className="flex items-center justify-between">
-            <TabsList className="grid w-full max-w-2xl grid-cols-5 bg-white border border-blue-200">
+            <TabsList className="grid w-full max-w-2xl grid-cols-4 bg-white border border-blue-200">
               <TabsTrigger value="all-books" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 Tất cả sách
               </TabsTrigger>
@@ -531,9 +531,6 @@ const Index = () => {
               </TabsTrigger>
               <TabsTrigger value="returned" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                 Đã trả
-              </TabsTrigger>
-              <TabsTrigger value="favorites" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                Yêu thích
               </TabsTrigger>
             </TabsList>
 
@@ -1006,18 +1003,7 @@ const Index = () => {
             )}
           </TabsContent>
 
-          {/* Favorites Tab Content - Still mock for now */}
-          <TabsContent value="favorites" className="space-y-6">
-            <Card className="border-purple-200 bg-purple-50/50">
-              <CardHeader>
-                <CardTitle className="text-purple-800">Sách yêu thích</CardTitle>
-                <CardDescription>Danh sách các sách bạn đã đánh dấu yêu thích</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-purple-600">Chưa có sách yêu thích nào.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          
         </Tabs>
       </div>
 

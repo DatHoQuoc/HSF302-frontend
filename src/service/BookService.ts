@@ -34,6 +34,7 @@ export interface BookInfo {
   shareable: boolean
   returnApproved?: boolean
   borrowerInfo?: UserProfile
+   hasContent?: boolean
 }
 
 export interface GetAllBooksResponse {
@@ -115,10 +116,10 @@ class BookService {
     }
   }
 
-  async createBook(bookData: CreateBookRequest): Promise<void> {
+  async createBook(bookData: CreateBookRequest): Promise<number> {
     try {
       const response = await api.post<number>("/books", bookData)
-      return
+      return response.data
     } catch (error) {
       console.error("Failed to create book:", error)
       const errorMessage = error.response?.data?.message || "Không thể tạo sách. Vui lòng thử lại."
@@ -334,6 +335,59 @@ class BookService {
       console.error("Failed to fetch dashboard stats:", error)
       const errorMessage = error.response?.data?.message || "Không thể lấy thống kê dashboard. Vui lòng thử lại."
       throw new Error(errorMessage)
+    }
+  }
+
+  async uploadBookContent(bookId: number, file: File, uploadedBy: number): Promise<void> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('uploadedBy', uploadedBy.toString()); 
+
+    try {
+      const response = await api.post(`/books/${bookId}/upload-content`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data', 
+        },
+      });
+      return response.data; 
+    } catch (error) {
+      console.error(`Failed to upload content for book ID ${bookId}:`, error);
+      const errorMessage = error.response?.data?.message || "Không thể tải lên nội dung sách. Vui lòng thử lại.";
+      throw new Error(errorMessage);
+    }
+  }
+
+  async getBookPdfUrl(bookId: number, userId: number, expiresInSeconds: number = 604800): Promise<string> {
+    try {
+      const response = await api.get<{ signedUrl: string }>(
+        `/books/${bookId}/signed-url?userId=${userId}&expiresInSeconds=${expiresInSeconds}`
+      );
+      return response.data.signedUrl;
+    } catch (error) {
+      console.error(`Failed to get signed URL for book ID ${bookId}:`, error);
+      const errorMessage = error.response?.data?.message || "Không thể tải nội dung sách. Vui lòng thử lại.";
+      throw new Error(errorMessage);
+    }
+  }
+  getDownloadContentUrl(bookId: number, userId: number): string {
+    return `${api.defaults.baseURL || ''}/books/${bookId}/download-content?userId=${userId}`;
+  }
+  async checkDownloadPermission(bookId: number, userId: number): Promise<boolean> {
+    try {
+     
+      const response = await api.get<{ canDownload: boolean }>(
+        `/books/${bookId}/can-download?userId=${userId}`
+      );
+      return response.data.canDownload;
+    } catch (error) {
+      console.error(`Failed to check download permission for book ID ${bookId}:`, error);
+   
+      if (error.response && error.response.status === 403) {
+        return false;
+      }
+      // Ném lỗi cho các loại lỗi khác nếu cần xử lý riêng
+      const errorMessage = error.response?.data?.message || "Không thể kiểm tra quyền tải xuống.";
+      throw new Error(errorMessage);
     }
   }
 }

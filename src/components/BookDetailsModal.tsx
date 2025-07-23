@@ -2,26 +2,26 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { X, Star, BookOpen, Share2, Archive, Edit, Trash2 } from "lucide-react"
+import { X, Star, BookOpen, Share2, Archive, Edit, Trash2, Download, Eye, Loader2 } from "lucide-react" // Thêm Download, Eye, Loader2 icons
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea } from "@/components/ui/scroll-area" // Không còn cần thiết nếu sử dụng max-h và overflow-y-auto
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { FeedbackSection } from "./FeedbackSection"
 import { BookForm } from "./BookForm"
 import { bookService } from "@/service/BookService"
 import type { BookInfo, UserProfile } from "@/service/BookService"
 import { useToast } from "@/hooks/use-toast"
+import { PdfReaderModal } from "@/components/PDFReader" 
 
 interface BookDetailsModalProps {
   isOpen: boolean
   onClose: () => void
   bookId: number
   onBookUpdate?: () => void
-  currentUser?: UserProfile | null
 }
 
 export const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
@@ -29,21 +29,45 @@ export const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
   onClose,
   bookId,
   onBookUpdate,
-  currentUser,
 }) => {
   const { toast } = useToast()
   const [book, setBook] = useState<BookInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
-  const [isActionLoading, setIsActionLoading] = useState(false)
+  const [isActionLoading, setIsActionLoading] = useState(false) // For borrow/return/archive actions
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
+    const [isUserLoading, setIsUserLoading] = useState(true); // Trạng thái tải user
+
+  // States cho tính năng đọc/tải xuống
+  const [showPdfReader, setShowPdfReader] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [isLoadingPdf, setIsLoadingPdf] = useState(false) // For PDF loading specifically
+
+   useEffect(() => {
+    // console.log("Fetching user from localStorage...");
+    try {
+      const userString = localStorage.getItem('user');
+      if (userString) {
+        const parsedUser: UserProfile = JSON.parse(userString);
+        setCurrentUser(parsedUser);
+      } else {
+        setCurrentUser(null); // Không tìm thấy user trong localStorage
+      }
+    } catch (e) {
+      console.error("Failed to parse user from localStorage", e);
+      setCurrentUser(null);
+    } finally {
+        setIsUserLoading(false); // Đánh dấu đã xong việc tải user
+    }
+  }, []); // Chạy một lần khi component mount
 
   // Load book details when modal opens
   useEffect(() => {
     if (isOpen && bookId) {
       loadBookDetails()
     }
-  }, [isOpen, bookId])
+  }, [isOpen, bookId, isUserLoading])
 
   const loadBookDetails = async () => {
     try {
@@ -51,7 +75,7 @@ export const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
       setError(null)
       const bookData = await bookService.getBookById(bookId)
       setBook(bookData)
-    } catch (error) {
+    } catch (error) { // Cần định nghĩa type cho error
       console.error("Error loading book details:", error)
       setError(error.message || "Không thể tải thông tin sách")
     } finally {
@@ -219,9 +243,106 @@ export const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
     }
   }
 
+  // --- Hàm xử lý Đọc sách (xem PDF) ---
+  const handleReadBook = async () => {
+    console.log(book.id, currentUser.id);
+    if (!book?.id || !currentUser?.id) {
+      toast({
+        title: "Không thể đọc sách",
+        description: "Không có đủ thông tin sách hoặc người dùng để đọc.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (book.hasContent) {
+        toast({
+            title: "Không có nội dung sách",
+            description: "Cuốn sách này chưa có nội dung để đọc.",
+            variant: "default",
+        });
+        return;
+    }
+
+    try {
+      setIsLoadingPdf(true);
+      const signedUrl = await bookService.getBookPdfUrl(book.id, parseInt(currentUser.id));
+      if (signedUrl) {
+          setPdfUrl(signedUrl);
+          setShowPdfReader(true);
+      } else {
+          toast({
+              title: "Lỗi",
+              description: "Không thể nhận URL đọc sách. Vui lòng thử lại.",
+              variant: "destructive",
+          });
+      }
+    } catch (error) {
+      console.error("Error getting PDF URL:", error);
+      toast({
+        title: "Lỗi tải sách",
+        description: error.message || "Không thể tải file PDF để đọc.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingPdf(false);
+    }
+  };
+
+  // --- Hàm xử lý Tải xuống sách ---
+  const handleDownloadBook = async () => {
+    if (!book?.id || !currentUser?.id) {
+      toast({
+        title: "Không thể tải xuống",
+        description: "Không có đủ thông tin sách hoặc người dùng để tải xuống.",
+        variant: "destructive",
+      });
+      return;
+    }
+     // Check if the book actually has content
+     if (book.hasContent) { // Giả định BookInfo có thuộc tính `hasContent`
+        toast({
+            title: "Không có nội dung sách",
+            description: "Cuốn sách này chưa có nội dung để tải xuống.",
+            variant: "default",
+        });
+        return;
+    }
+
+    try {
+      // Bạn có thể thêm logic kiểm tra quyền tải xuống ở đây nếu backend có cung cấp API đó
+      // Ví dụ: const canDownload = await bookService.checkDownloadPermission(book.id, currentUser.id);
+      // if (!canDownload) { ... return; }
+
+      const downloadUrl = bookService.getDownloadContentUrl(book.id, parseInt(currentUser.id));
+      // Tạo một thẻ <a> ẩn và click để kích hoạt tải xuống
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${book.title || 'book'}.pdf`; // Gợi ý tên file khi tải xuống
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({
+        title: "Đang tải xuống",
+        description: `Đang tải xuống sách "${book.title}"...`,
+      });
+    } catch (error) {
+      console.error("Error downloading book:", error);
+      toast({
+        title: "Lỗi tải xuống",
+        description: error.message || "Không thể tải xuống sách.",
+        variant: "destructive",
+      });
+    }
+  };
+
+
   const isOwner = currentUser && book && book.ownerInfo?.id === currentUser.id
   const isBorrower = currentUser && book && book.borrowerInfo?.id === currentUser.id
   const canBorrow = book && book.shareable && !book.archived && !book.borrowerInfo && !isOwner
+  // Sách có nội dung (PDF) để đọc/tải xuống
+  const hasContentToAccess = book?.hasContent || true;
+
 
   const getUserInitials = (user: UserProfile | undefined) => {
     if (!user) return "U"
@@ -236,7 +357,7 @@ export const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-     <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
           <div className="flex items-center space-x-3">
             <BookOpen className="h-6 w-6 text-blue-600" />
@@ -250,7 +371,7 @@ export const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
           </Button>
         </CardHeader>
 
-        <div className="max-h-[calc(90vh-120px)] overflow-y-auto">
+        <div className="max-h-[calc(90vh-120px)] overflow-y-auto"> {/* Sử dụng div thay ScrollArea */}
           <CardContent className="p-6">
             {isLoading ? (
               <div className="flex justify-center items-center py-12">
@@ -303,6 +424,33 @@ export const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
 
                   {/* Action Buttons */}
                   <div className="space-y-2">
+                    {/* Read & Download Buttons (Chỉ hiển thị khi có nội dung sách) */}
+                    {hasContentToAccess && (
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                onClick={handleReadBook}
+                                disabled={isLoadingPdf || isActionLoading}
+                                className="flex-1 min-w-[120px]"
+                            >
+                                {isLoadingPdf ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Eye className="h-4 w-4 mr-2" />
+                                )}
+                                Đọc sách
+                            </Button>
+                            <Button
+                                onClick={handleDownloadBook}
+                                disabled={isActionLoading}
+                                variant="outline"
+                                className="flex-1 min-w-[120px]"
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                Tải xuống
+                            </Button>
+                        </div>
+                    )}
+
                     {canBorrow && (
                       <Button
                         onClick={handleBorrowBook}
@@ -452,6 +600,7 @@ export const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
                   {/* Additional Info */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                     <div>
+                      {/* Bỏ comment nếu muốn hiển thị */}
                       {/* <p>
                         <strong>Ngày tạo:</strong> {formatDate(book.createdDate)}
                       </p>
@@ -483,9 +632,23 @@ export const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
           onClose={() => setShowEditForm(false)}
           onSuccess={() => {
             setShowEditForm(false)
-            loadBookDetails()
-            onBookUpdate?.()
+            loadBookDetails() 
+            onBookUpdate?.() 
           }}
+          isEditing={true} // Luôn là chỉnh sửa khi mở từ BookDetailsModal
+        />
+      )}
+
+      {/* PdfReaderModal */}
+      {showPdfReader && pdfUrl && (
+        <PdfReaderModal
+          isOpen={showPdfReader}
+          onClose={() => {
+            setShowPdfReader(false)
+            setPdfUrl(null)
+          }}
+          pdfUrl={pdfUrl}
+          bookTitle={book?.title || "Sách"}
         />
       )}
     </div>

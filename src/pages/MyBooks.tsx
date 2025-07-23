@@ -29,7 +29,8 @@ const MyBooks: React.FC<MyBooksProps> = ({ page = 0, size = 5 }) => {
   const [totalPages, setTotalPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(page);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-
+  
+  
   // --- Effect để tải dữ liệu sách ---
   useEffect(() => {
     const fetchBooks = async () => {
@@ -462,11 +463,12 @@ const MyBooks: React.FC<MyBooksProps> = ({ page = 0, size = 5 }) => {
       {showAddForm && (
         <BookForm
           book={selectedBook}
+          isEditing={!!selectedBook}
           onClose={() => {
             setShowAddForm(false);
             setSelectedBook(null);
           }}
-        // onSuccess={handleFormSuccess}
+         onSuccess={handleFormSuccess}
         />
       )}
 
