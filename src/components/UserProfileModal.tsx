@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
-import { X, User, Mail, Calendar, Loader2, Save } from "lucide-react"
+import { useState, useEffect, useRef } from "react" // Import useRef
+import { X, User, Mail, Calendar, Loader2, Save, Camera } from "lucide-react" // Import Camera icon
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast"
 import { authenticationService } from "@/service/AuthenticationService"
 import type { UserProfile, UserInfo } from "@/service/BookService"
-import type {UpdateProfileRequest} from '@/service/AuthenticationService'
+import type { UpdateProfileRequest } from '@/service/AuthenticationService'
+
 interface UserProfileModalProps {
   isOpen: boolean
   onClose: () => void
@@ -27,8 +28,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
     lastName: "",
     email: "",
     dateOfBirth: "",
+    imageId: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [selectedFile, setSelectedFile] = useState<File | null>(null) // State để lưu trữ file được chọn
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref cho input type="file"
 
   // Load user profile when modal opens
   useEffect(() => {
@@ -47,7 +51,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
         lastName: userProfile.lastName || "",
         email: userProfile.email || "",
         dateOfBirth: userProfile.dateOfBirth || "",
+        imageId: userProfile.imageUrl || "",
       })
+      setSelectedFile(null); // Reset selected file on profile load
     } catch (error) {
       console.error("Error loading user profile:", error)
       // Try to get from localStorage as fallback
@@ -61,6 +67,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
             lastName: user.lastName || "",
             email: user.email || "",
             dateOfBirth: user.dateOfBirth || "",
+            imageId: user.imageUrl || "",
+
           })
         } catch (e) {
           console.error("Error parsing stored user:", e)
@@ -107,45 +115,58 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
     }
   }
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0]);
+    } else {
+      setSelectedFile(null);
+    }
+  }
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click(); // Kích hoạt input file ẩn khi click vào avatar
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) {
-    return
-  }
-
-  try {
-    setIsLoading(true)
-
-    // Tạo request data
-    const updateData: UpdateProfileRequest = {
-      firstName: formData.firstName.trim(),
-      lastName: formData.lastName.trim(),
-      dateOfBirth: formData.dateOfBirth || undefined,
-      // file: selectedFile // nếu có upload avatar
+      return
     }
 
-    // Gọi API update profile thực tế
-     await authenticationService.updateProfile(updateData)
-   
-    // Callback để parent component cập nhật state
-    
-    onClose()
+    try {
+      setIsLoading(true)
 
-    toast({
-      title: "Cập nhật thành công",
-      description: "Thông tin cá nhân đã được lưu",
-    })
-  } catch (error) {
-    console.error("Error updating profile:", error)
-    toast({
-      title: "Lỗi cập nhật",
-      description: error.message || "Không thể cập nhật thông tin",
-      variant: "destructive",
-    })
-  } finally {
-    setIsLoading(false)
-  }
+      // Tạo request data
+      const updateData: UpdateProfileRequest = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        dateOfBirth: formData.dateOfBirth || undefined,
+        file: selectedFile || undefined, // Thêm file đã chọn vào request nếu có
+      }
+
+      // Gọi API update profile thực tế
+      const updatedProfile = await authenticationService.updateProfile(updateData)
+      const latestUserProfile = await authenticationService.getProfile();
+      // Callback để parent component cập nhật state
+      onProfileUpdate(latestUserProfile)
+
+      onClose()
+
+      toast({
+        title: "Cập nhật thành công",
+        description: "Thông tin cá nhân đã được lưu",
+      })
+    } catch (error) { // Cần định nghĩa rõ ràng kiểu lỗi
+      console.error("Error updating profile:", error)
+      toast({
+        title: "Lỗi cập nhật",
+        description: error.message || "Không thể cập nhật thông tin",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const getUserInitials = () => {
@@ -154,6 +175,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
     }
     return "U"
   }
+
+  const avatarSrc = selectedFile ? URL.createObjectURL(selectedFile) : formData.imageId || undefined;
 
   if (!isOpen) return null
 
@@ -180,12 +203,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Avatar Section */}
               <div className="flex flex-col items-center space-y-4">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={profile?.imageId || undefined} alt="Avatar" />
-                  <AvatarFallback className="text-lg bg-blue-100 text-blue-600">{getUserInitials()}</AvatarFallback>
-                </Avatar>
+                <div className="relative cursor-pointer" onClick={handleAvatarClick}>
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={avatarSrc} alt="Avatar" />
+                    <AvatarFallback className="text-lg bg-blue-100 text-blue-600">{getUserInitials()}</AvatarFallback>
+                  </Avatar>
+                  <div className="absolute bottom-0 right-0 bg-blue-500 rounded-full p-2 text-white border-2 border-white">
+                    <Camera className="h-4 w-4" />
+                  </div>
+                </div>
+                {/* Input file ẩn */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept="image/*" // Chỉ chấp nhận các loại file ảnh
+                />
                 <p className="text-sm text-gray-500 text-center">
-                  Ảnh đại diện sẽ được cập nhật trong phiên bản tương lai
+                  Nhấp vào ảnh đại diện để thay đổi
                 </p>
               </div>
 
@@ -236,6 +272,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   className={errors.email ? "border-red-500" : ""}
                   placeholder="Nhập email của bạn"
+                  disabled // Email thường không được thay đổi qua form này
                 />
                 {errors.email && <p className="text-sm text-red-600">{errors.email}</p>}
               </div>

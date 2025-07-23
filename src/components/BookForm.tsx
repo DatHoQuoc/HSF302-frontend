@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { X, Upload, BookOpen, User, FileText, Hash, Share2, Loader2 } from "lucide-react"
+import { X, Upload, BookOpen, User, FileText, Hash, Share2, Loader2, FileUp } from "lucide-react" // Import FileUp icon
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,7 +17,7 @@ import { toast } from "@/hooks/use-toast"
 interface BookFormProps {
   onClose: () => void
   onSuccess?: () => void
-  book?: any 
+  book?: any
   isEditing?: boolean
 }
 
@@ -32,6 +32,7 @@ export const BookForm: React.FC<BookFormProps> = ({ onClose, onSuccess, book, is
 
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [coverPreview, setCoverPreview] = useState<string>(book?.cover || "")
+  const [contentFile, setContentFile] = useState<File | null>(null) // New state for content file
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,6 +56,15 @@ export const BookForm: React.FC<BookFormProps> = ({ onClose, onSuccess, book, is
     }
   }
 
+  const handleContentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setContentFile(file)
+    } else {
+      setContentFile(null);
+    }
+  }
+
   const validateForm = () => {
     if (!formData.title.trim()) {
       setError("Vui lòng nhập tên sách")
@@ -72,83 +82,131 @@ export const BookForm: React.FC<BookFormProps> = ({ onClose, onSuccess, book, is
       setError("Vui lòng nhập mô tả sách")
       return false
     }
+    // For new book, require content file upload
+    if (!isEditing && !contentFile) {
+        setError("Vui lòng chọn file nội dung sách (.pdf, .epub)");
+        return false;
+    }
     return true
   }
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
 
-  if (!validateForm()) {
-    return
-  }
-
-  setIsSubmitting(true)
-  setError(null)
-
-  try {
-    const bookData: CreateBookRequest = {
-      id: book?.id || 0, // 0 cho create, existing id cho update
-      title: formData.title.trim(),
-      authorName: formData.authorName.trim(),
-      isbn: formData.isbn.trim(),
-      synopsis: formData.synopsis.trim(),
-      shareable: formData.shareable,
+    if (!validateForm()) {
+      return
     }
 
-    // POST cho cả create và update
-    const savedBookId = await bookService.createBook(bookData) // Trả về Integer (id)
-    
-    toast({
-      title: isEditing ? "Cập nhật sách thành công" : "Thêm sách thành công",
-      description: `Đã ${isEditing ? 'cập nhật' : 'thêm'} sách "${formData.title}"`,
-    })
+    setIsSubmitting(true)
+    setError(null)
 
-    // Upload cover - sử dụng id đã được save
-    const bookIdForUpload = savedBookId || book?.id
-    
-    console.log("Debug upload:", {
-      coverFile: !!coverFile,
-      bookIdForUpload,
-      savedBookId,
-      originalBookId: book?.id
-    })
+    try {
+      const bookData: CreateBookRequest = {
+        id: book?.id || 0, // 0 cho create, existing id cho update
+        title: formData.title.trim(),
+        authorName: formData.authorName.trim(),
+        isbn: formData.isbn.trim(),
+        synopsis: formData.synopsis.trim(),
+        shareable: formData.shareable,
+      }
 
-    if (coverFile && bookIdForUpload) {
-      try {
-        await bookService.uploadBookCover(bookIdForUpload, coverFile)
-        toast({
-          title: "Upload ảnh bìa thành công",
-          description: "Ảnh bìa sách đã được cập nhật",
-        })
-      } catch (coverError) {
-        console.error("Error uploading cover:", coverError)
-        toast({
-          title: "Lỗi upload ảnh bìa",
-          description: "Sách đã được lưu nhưng không thể upload ảnh bìa",
-          variant: "destructive",
+      // POST for both create and update
+      const savedBookId = await bookService.createBook(bookData) // Trả về Integer (id)
+
+      toast({
+        title: isEditing ? "Cập nhật sách thành công" : "Thêm sách thành công",
+        description: `Đã ${isEditing ? 'cập nhật' : 'thêm'} sách "${formData.title}"`,
+      })
+
+      // Determine the book ID to use for uploads
+      const bookIdForUpload = savedBookId || book?.id
+
+      console.log("Debug upload:", {
+        coverFile: !!coverFile,
+        contentFile: !!contentFile,
+        bookIdForUpload,
+        savedBookId,
+        originalBookId: book?.id
+      })
+
+      // Upload cover if a file is selected and we have a book ID
+      if (coverFile && bookIdForUpload) {
+        try {
+          await bookService.uploadBookCover(bookIdForUpload, coverFile)
+          toast({
+            title: "Upload ảnh bìa thành công",
+            description: "Ảnh bìa sách đã được cập nhật",
+          })
+        } catch (coverError) { // Explicitly type coverError
+          console.error("Error uploading cover:", coverError)
+          toast({
+            title: "Lỗi upload ảnh bìa",
+            description: coverError.message || "Sách đã được lưu nhưng không thể upload ảnh bìa",
+            variant: "destructive",
+          })
+        }
+      } else {
+        console.log("Skipping cover upload:", {
+          hasCoverFile: !!coverFile,
+          hasBookId: !!bookIdForUpload
         })
       }
-    } else {
-      console.log("Skipping cover upload:", {
-        hasCoverFile: !!coverFile,
-        hasBookId: !!bookIdForUpload
-      })
-    }
 
-    onSuccess?.()
-    onClose()
-  } catch (error) {
-    console.error("Error saving book:", error)
-    setError(error.message || "Đã xảy ra lỗi khi lưu sách")
-    toast({
-      title: isEditing ? "Lỗi cập nhật sách" : "Lỗi thêm sách",
-      description: error.message || "Vui lòng thử lại",
-      variant: "destructive",
-    })
-  } finally {
-    setIsSubmitting(false)
+      // Upload content if a file is selected and we have a book ID
+      // For editing, content file is optional. For new book, it's required (checked in validateForm).
+      if (contentFile && bookIdForUpload) {
+        try {
+            // Lấy userId từ localStorage hoặc từ context/auth state của bạn
+            const storedUser = localStorage.getItem("user");
+            let uploadedBy = 0; // Default or error value
+            if (storedUser) {
+                try {
+                    const user = JSON.parse(storedUser);
+                    uploadedBy = user.id; // Giả sử user object có id
+                } catch (e) {
+                    console.error("Error parsing stored user for uploadedBy:", e);
+                }
+            }
+
+            if (uploadedBy === 0) {
+                throw new Error("Không tìm thấy thông tin người dùng để upload nội dung sách.");
+            }
+
+            await bookService.uploadBookContent(bookIdForUpload, contentFile, uploadedBy);
+            toast({
+                title: "Upload nội dung sách thành công",
+                description: "Nội dung sách đã được cập nhật.",
+            });
+        } catch (contentError) { // Explicitly type contentError
+            console.error("Error uploading content:", contentError);
+            toast({
+                title: "Lỗi upload nội dung sách",
+                description: contentError.message || "Sách đã được lưu nhưng không thể upload nội dung.",
+                variant: "destructive",
+            });
+        }
+      } else {
+        console.log("Skipping content upload:", {
+          hasContentFile: !!contentFile,
+          hasBookId: !!bookIdForUpload
+        });
+      }
+
+
+      onSuccess?.()
+      onClose()
+    } catch (error) { // Explicitly type error
+      console.error("Error saving book:", error)
+      setError(error.message || "Đã xảy ra lỗi khi lưu sách")
+      toast({
+        title: isEditing ? "Lỗi cập nhật sách" : "Lỗi thêm sách",
+        description: error.message || "Vui lòng thử lại",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
-}
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -197,6 +255,27 @@ export const BookForm: React.FC<BookFormProps> = ({ onClose, onSuccess, book, is
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Content Upload */}
+            <div className="space-y-2">
+                <Label htmlFor="contentFile" className="flex items-center">
+                    <FileUp className="h-4 w-4 mr-2" />
+                    File nội dung sách *
+                </Label>
+                <Input
+                    id="contentFile"
+                    type="file"
+                    accept=".pdf,.epub" // Chấp nhận PDF và EPUB
+                    onChange={handleContentChange}
+                    disabled={isSubmitting}
+                    className="cursor-pointer"
+                />
+                <p className="text-xs text-gray-500 mt-1">Chỉ chấp nhận file PDF hoặc EPUB.</p>
+                {contentFile && (
+                    <p className="text-sm text-gray-700">Đã chọn file: <span className="font-semibold">{contentFile.name}</span></p>
+                )}
+                {!isEditing && !contentFile && <p className="text-sm text-red-600">Bạn phải upload nội dung sách khi tạo sách mới.</p>}
             </div>
 
             {/* Title */}

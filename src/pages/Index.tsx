@@ -118,6 +118,8 @@ const Index = () => {
         setIsLoadingProfile(true)
         const profile = await bookService.getUserProfile()
         profile.fullName = `${profile.firstName} ${profile.lastName}`
+         const user = JSON.parse(localStorage.getItem("user"));
+        profile.imageId = `${user.imageUrl}`
         setUserProfile(profile)
       } catch (error) {
         console.error("Error fetching user profile:", error)
@@ -129,6 +131,7 @@ const Index = () => {
             setUserProfile({
               ...user,
               fullName: `${user.firstName} ${user.lastName}`,
+              imageId: `${user.imageUrl}`
             })
           } catch (e) {
             console.error("Error parsing stored user:", e)
