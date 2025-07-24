@@ -529,10 +529,7 @@ export const BookCard: React.FC<BookCardProps> = ({
                       {book.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleDeleteBook} className="text-red-600 focus:text-red-600">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Xóa sách
-                    </DropdownMenuItem>
+                   
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

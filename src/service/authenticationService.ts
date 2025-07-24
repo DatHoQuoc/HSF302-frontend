@@ -46,7 +46,7 @@ class AuthenticationService {
       const response = await api.post<void>('/auth/register', data);
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "Đăng ký không thành công. Vui lòng thử lại.";
+      const errorMessage = error.response?.data?.error || "Đăng ký không thành công. Vui lòng thử lại.";
       throw new Error(errorMessage);
     }
   }
@@ -60,7 +60,7 @@ class AuthenticationService {
       });
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "Kích hoạt tài khoản không thành công. Vui lòng kiểm tra lại liên kết.";
+      const errorMessage = error.response?.data?.error || "Kích hoạt tài khoản không thành công. Vui lòng kiểm tra lại liên kết.";
       throw new Error(errorMessage);
     }
   }
@@ -73,7 +73,7 @@ class AuthenticationService {
       }
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "Đăng nhập không thành công. Vui lòng kiểm tra email và mật khẩu.";
+      const errorMessage = error.response?.data?.error || "Đăng nhập không thành công. Vui lòng kiểm tra email và mật khẩu.";
       throw new Error(errorMessage);
     }
   }
@@ -85,7 +85,7 @@ class AuthenticationService {
       }
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "Đăng nhập không thành công. Vui lòng kiểm tra email và mật khẩu.";
+      const errorMessage = error.response?.data?.error || "Đăng nhập không thành công. Vui lòng kiểm tra email và mật khẩu.";
       throw new Error(errorMessage);
     }
   }
@@ -110,7 +110,7 @@ class AuthenticationService {
 
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "Cập nhật thông tin không thành công. Vui lòng thử lại.";
+      const errorMessage = error.response?.data?.error || "Cập nhật thông tin không thành công. Vui lòng thử lại.";
       throw new Error(errorMessage);
     }
   }

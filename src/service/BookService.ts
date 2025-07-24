@@ -111,7 +111,7 @@ class BookService {
       return response.data
     } catch (error) {
       console.error("Failed to fetch books:", error)
-      const errorMessage = error.response?.data?.message || "Không thể lấy danh sách sách. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể lấy danh sách sách. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -122,7 +122,7 @@ class BookService {
       return response.data
     } catch (error) {
       console.error("Failed to create book:", error)
-      const errorMessage = error.response?.data?.message || "Không thể tạo sách. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể tạo sách. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -133,7 +133,7 @@ class BookService {
       return
     } catch (error) {
       console.error(`Failed to borrow book with ID ${bookId}:`, error)
-      const errorMessage = error.response?.data?.message || "Không thể mượn sách. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể mượn sách. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -145,7 +145,7 @@ class BookService {
     } catch (error) {
       console.error(`Failed to toggle shareable status for book with ID ${bookId}:`, error)
       const errorMessage =
-        error.response?.data?.message || "Không thể cập nhật trạng thái chia sẻ sách. Vui lòng thử lại."
+        error.response?.data?.error || "Không thể cập nhật trạng thái chia sẻ sách. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -156,7 +156,7 @@ class BookService {
       return
     } catch (error) {
       console.error(`Failed to return book with ID ${bookId}:`, error)
-      const errorMessage = error.response?.data?.message || "Không thể trả sách. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể trả sách. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -167,7 +167,7 @@ class BookService {
       return
     } catch (error) {
       console.error(`Failed to approve return for book with ID ${bookId}:`, error)
-      const errorMessage = error.response?.data?.message || "Không thể duyệt trả sách. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể duyệt trả sách. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -179,7 +179,7 @@ class BookService {
     } catch (error) {
       console.error(`Failed to toggle archived status for book with ID ${bookId}:`, error)
       const errorMessage =
-        error.response?.data?.message || "Không thể cập nhật trạng thái lưu trữ sách. Vui lòng thử lại."
+        error.response?.data?.error || "Không thể cập nhật trạng thái lưu trữ sách. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -197,7 +197,7 @@ class BookService {
       return
     } catch (error) {
       console.error(`Failed to upload cover for book with ID ${bookId}:`, error)
-      const errorMessage = error.response?.data?.message || "Không thể tải ảnh bìa sách lên. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể tải ảnh bìa sách lên. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -208,7 +208,7 @@ class BookService {
       return response.data
     } catch (error) {
       console.error("Failed to fetch owner books:", error)
-      const errorMessage = error.response?.data?.message || "Không thể lấy danh sách sách của bạn. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể lấy danh sách sách của bạn. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -219,7 +219,7 @@ class BookService {
       return response.data
     } catch (error) {
       console.error("Failed to fetch returned books:", error)
-      const errorMessage = error.response?.data?.message || "Không thể lấy danh sách sách đã trả. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể lấy danh sách sách đã trả. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -230,7 +230,7 @@ class BookService {
       return response.data
     } catch (error) {
       console.error("Failed to fetch borrowed books:", error)
-      const errorMessage = error.response?.data?.message || "Không thể lấy danh sách sách đã mượn. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể lấy danh sách sách đã mượn. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -242,7 +242,7 @@ class BookService {
       return response.data
     } catch (error) {
       console.error(`Failed to fetch book with ID ${bookId}:`, error)
-      const errorMessage = error.response?.data?.message || "Không thể lấy thông tin sách. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể lấy thông tin sách. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -253,7 +253,7 @@ class BookService {
       return
     } catch (error) {
       console.error(`Failed to update book with ID ${bookId}:`, error)
-      const errorMessage = error.response?.data?.message || "Không thể cập nhật sách. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể cập nhật sách. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -264,7 +264,7 @@ class BookService {
       return
     } catch (error) {
       console.error(`Failed to delete book with ID ${bookId}:`, error)
-      const errorMessage = error.response?.data?.message || "Không thể xóa sách. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể xóa sách. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -276,7 +276,7 @@ class BookService {
       return
     } catch (error) {
       console.error("Failed to create feedback:", error)
-      const errorMessage = error.response?.data?.message || "Không thể gửi đánh giá. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể gửi đánh giá. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -287,7 +287,7 @@ class BookService {
       return response.data
     } catch (error) {
       console.error(`Failed to fetch feedbacks for book ${bookId}:`, error)
-      const errorMessage = error.response?.data?.message || "Không thể lấy danh sách đánh giá. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể lấy danh sách đánh giá. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -298,7 +298,7 @@ class BookService {
       return
     } catch (error) {
       console.error(`Failed to update feedback with ID ${feedbackId}:`, error)
-      const errorMessage = error.response?.data?.message || "Không thể cập nhật đánh giá. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể cập nhật đánh giá. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -309,7 +309,7 @@ class BookService {
       return
     } catch (error) {
       console.error(`Failed to delete feedback with ID ${feedbackId}:`, error)
-      const errorMessage = error.response?.data?.message || "Không thể xóa đánh giá. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể xóa đánh giá. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -321,7 +321,7 @@ class BookService {
       return response.data
     } catch (error) {
       console.error("Failed to fetch user profile:", error)
-      const errorMessage = error.response?.data?.message || "Không thể lấy thông tin người dùng. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể lấy thông tin người dùng. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -333,7 +333,7 @@ class BookService {
       return response.data
     } catch (error) {
       console.error("Failed to fetch dashboard stats:", error)
-      const errorMessage = error.response?.data?.message || "Không thể lấy thống kê dashboard. Vui lòng thử lại."
+      const errorMessage = error.response?.data?.error || "Không thể lấy thống kê dashboard. Vui lòng thử lại."
       throw new Error(errorMessage)
     }
   }
@@ -352,7 +352,7 @@ class BookService {
       return response.data; 
     } catch (error) {
       console.error(`Failed to upload content for book ID ${bookId}:`, error);
-      const errorMessage = error.response?.data?.message || "Không thể tải lên nội dung sách. Vui lòng thử lại.";
+      const errorMessage = error.response?.data?.error || "Không thể tải lên nội dung sách. Vui lòng thử lại.";
       throw new Error(errorMessage);
     }
   }
@@ -365,7 +365,7 @@ class BookService {
       return response.data.signedUrl;
     } catch (error) {
       console.error(`Failed to get signed URL for book ID ${bookId}:`, error);
-      const errorMessage = error.response?.data?.message || "Không thể tải nội dung sách. Vui lòng thử lại.";
+      const errorMessage = error.response?.data?.error || "Không thể tải nội dung sách. Vui lòng thử lại.";
       throw new Error(errorMessage);
     }
   }
@@ -386,7 +386,7 @@ class BookService {
         return false;
       }
       // Ném lỗi cho các loại lỗi khác nếu cần xử lý riêng
-      const errorMessage = error.response?.data?.message || "Không thể kiểm tra quyền tải xuống.";
+      const errorMessage = error.response?.data?.error || "Không thể kiểm tra quyền tải xuống.";
       throw new Error(errorMessage);
     }
   }

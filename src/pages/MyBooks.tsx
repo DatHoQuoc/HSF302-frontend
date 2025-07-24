@@ -300,15 +300,7 @@ const MyBooks: React.FC<MyBooksProps> = ({ page = 0, size = 5 }) => {
                 Khôi phục
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDeleteBook(book.id)}
-              className="text-red-600 hover:text-red-700"
-              title="Xóa sách"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+         
           </div>
         </div>
       </CardContent>
